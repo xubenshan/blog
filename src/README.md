@@ -68,7 +68,7 @@ features:
     details: 包括博客主页、图标支持、路径导航、页脚支持、全屏按钮、返回顶部按钮等
     link: /zh/guide/feature/
 
-footer: MIT Licensed | Copyright © 2019-present Mr.Hope
+footer: MIT Licensed | Copyright © 2025-present Mr.Hope
 copyright: false
 ---
 

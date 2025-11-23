@@ -36,6 +36,12 @@ export default sidebar({
       children: "structure",
     },
     {
+      text: "设计模式",
+      icon: "book",
+      prefix: "设计模式/",
+      children: "structure",
+    },
+    {
       text: "面经",
       icon: "book",
       prefix: "计算机基础/",
