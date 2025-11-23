@@ -36,10 +36,9 @@ export default navbar([
     prefix: "/algorithm/",
     children: [
       {
-        text: "",
+        text: "搜索专题",
         icon: "lightbulb",
-        prefix: "search/",
-        children: ["搜索专题"],
+        link: "search/",
       },
       // {
       //   text: "Linux入门",
@@ -47,10 +46,9 @@ export default navbar([
       //   link: "/tools/linux/Git项目搭建.md",
       // },
       {
-        text: "",
+        text: "DP专题",
         icon: "lightbulb",
-        prefix: "DP/",
-        children: ["DP专题"],
+        link: "DP/",
       }
     ],
   },
