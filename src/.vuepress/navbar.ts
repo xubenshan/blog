@@ -93,6 +93,11 @@ export default navbar([
         // icon: "lightbulb",
         link: "/tools/linux/Linux入门.md",
       },
+      {
+        text: "Docker",
+        // icon: "lightbulb",
+        link: "/tools/Docker.md",
+      }
     ],
   },
   {
