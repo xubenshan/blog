@@ -6,13 +6,25 @@ export default navbar([
   // "/demo/",
   {
     text: "编程基础",
-    icon: "lightbulb",
+    icon: "user",
     prefix: "/cpp/",
     children: [
       {
         text: "",
         icon: "lightbulb",
-        prefix: "base/",
+        prefix: "",
+        children: ["C++入门"],
+      },
+      {
+        text: "",
+        icon: "lightbulb",
+        prefix: "",
+        children: ["C++核心编程"],
+      },
+      {
+        text: "",
+        icon: "lightbulb",
+        prefix: "",
         children: ["C++提高编程"],
       },
     ],
@@ -20,7 +32,7 @@ export default navbar([
 
   {
     text: "算法",
-    icon: "lightbulb",
+    icon: "comment",
     prefix: "/algorithm/",
     children: [
       {
@@ -29,29 +41,41 @@ export default navbar([
         prefix: "search/",
         children: ["搜索专题"],
       },
+      // {
+      //   text: "Linux入门",
+      //   // icon: "lightbulb",
+      //   link: "/tools/linux/Git项目搭建.md",
+      // },
       {
-        text: "Linux入门",
-        // icon: "lightbulb",
-        link: "/tools/linux/README.md",
-      },
+        text: "",
+        icon: "lightbulb",
+        prefix: "DP/",
+        children: ["DP专题"],
+      }
     ],
   },
 
   {
     text: "计算机基础",
-    icon: "lightbulb",
-    prefix: "/工具/",
+    icon: "database",
+    prefix: "/计算机基础/",
     children: [
+
       {
-        text: "Git",
+        text: "计算机网络",
         // icon: "lightbulb",
-        link: "/tools/Git/README.md",
+        link: "/tools/Git/Git项目搭建.md",
       },
       {
-        text: "Linux入门",
+        text: "操作系统",
         // icon: "lightbulb",
-        link: "/tools/linux/README.md",
+        link: "/tools/linux/Git项目搭建.md",
       },
+        {
+            text: "数据库",
+            // icon: "lightbulb",
+            link: "/tools/linux/Git项目搭建.md",
+        },
     ],
   },
   {
@@ -62,48 +86,42 @@ export default navbar([
       {
         text: "Git",
         // icon: "lightbulb",
-        link: "/tools/Git/README.md",
+        link: "/tools/Git/Git项目搭建.md",
       },
       {
-        text: "Linux入门",
+        text: "Linux",
         // icon: "lightbulb",
-        link: "/tools/linux/README.md",
+        link: "/tools/linux/Linux入门.md",
       },
     ],
   },
   {
     text: "项目实战",
-    icon: "lightbulb",
-    prefix: "/工具/",
+    icon: "circle-question",
+    prefix: "/project/",
     children: [
       {
-        text: "Git",
+        text: "WebServer",
         // icon: "lightbulb",
-        link: "/tools/Git/README.md",
+        link: "",
       },
       {
-        text: "Linux入门",
+        text: "手写STL",
         // icon: "lightbulb",
-        link: "/tools/linux/README.md",
+        link: "",
       },
     ],
   },
   {
+    text: "设计模式",
+    icon: "pencil",
+    link: "/tools/linux/Linux入门.md",
+  },
+  {
     text: "面经",
-    icon: "lightbulb",
+    icon: "book",
     prefix: "/工具/",
-    children: [
-      {
-        text: "Git",
-        // icon: "lightbulb",
-        link: "/tools/Git/README.md",
-      },
-      {
-        text: "Linux入门",
-        // icon: "lightbulb",
-        link: "/tools/linux/README.md",
-      },
-    ],
+    link: "https://theme-hope.vuejs.press/zh/",
   },
   // {
   //   text: "计算机基础",
