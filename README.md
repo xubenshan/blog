@@ -1,0 +1,2 @@
+# blog
+web for note
