@@ -8,7 +8,7 @@ export default hopeTheme({
 
   author: {
     name: "Mr.Hope",
-    url: "https://mister-hope.com",
+    url: "https://github.com/xubenshan/blog",
   },
 
   logo: "/favicon.ico",
