@@ -930,6 +930,14 @@ int main() {
 
 如果把类的成员声明成静态，就可以把它和类的对象独立开来。（静态成员不属于对象）。
 
+delete 指针：不是把指针删除，而是释放指针指向的那块内存。指针里面存放的内存地址没有变，此时指针就变成了野指针。所以delete之后要加一句代码：将指针置空。p = nullptr。
+
+C++规定delete一个空指针是安全的。
+
+字面量没有地址。
+
+![image-20251124181036776](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124181036776.png)
+
 #### 4.2.7 类对象作为类成员
 
 
@@ -1921,11 +1929,11 @@ int main() {
 
 > 总结： 前置递增返回引用，后置递增返回值
 
+重载+前置运算符为什么返回的是CGirl引用，能不能直接返回CGirl类？
 
+![image-20251124210828472](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124210828472.png)
 
-
-
-
+![image-20251124210852177](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124210852177.png)
 
 
 

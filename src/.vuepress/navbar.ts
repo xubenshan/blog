@@ -111,7 +111,12 @@ export default navbar([
       {
         text: "手写STL",
         // icon: "lightbulb",
-        link: "",
+        link: "https://github.com/parallel101/stl1weekend",
+      },
+      {
+        text: "协程库",
+        // icon: "lightbulb",
+        link: "https://github.com/youngyangyang04/coroutine-lib/tree/main",
       },
     ],
   },
