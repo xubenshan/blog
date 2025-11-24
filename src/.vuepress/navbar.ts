@@ -106,7 +106,7 @@ export default navbar([
       {
         text: "WebServer",
         // icon: "lightbulb",
-        link: "",
+        link: "https://github.com/qinguoyi/TinyWebServer",
       },
       {
         text: "手写STL",
