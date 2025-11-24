@@ -1931,7 +1931,7 @@ int main() {
 
 重载+前置运算符为什么返回的是CGirl引用，能不能直接返回CGirl类？
 
-![image-20251124210828472](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124210828472.png)
+![引用](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124210828472.png)
 
 ![image-20251124210852177](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251124210852177.png)
 
