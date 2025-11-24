@@ -1,6 +1,11 @@
 import { defineUserConfig } from "vuepress";
 
 import theme from "./theme.js";
+import { docsearchPlugin } from '@vuepress/plugin-docsearch'
+import { searchPlugin } from '@vuepress/plugin-search'
+import { noticePlugin } from '@vuepress/plugin-notice'
+import { copyrightPlugin } from '@vuepress/plugin-copyright'
+
 
 // .vuepress/config.ts
 
@@ -16,7 +21,38 @@ export default defineUserConfig({
   ],
 
   theme,
+  plugins: [
+    searchPlugin({
+      locales: {
+        '/': {
+          placeholder: 'Search',
+        },
+        '/zh/': {
+          placeholder: '搜索',
+        },
+      },
 
+    }),
+    noticePlugin({
+      config: [
+        {
+          showOnce: true,
+          // confirm: true,
+          path: '/',
+          title: '通知公告',
+          content: '欢迎来到C++转码笔记，希望在这里你能有所收获！',
+          actions: [
+            {
+              text: 'Primary Action',
+              link: 'https://example.com',
+              type: 'primary',
+            },
+          ],
+        },
+      ],
+    }),
+
+  ],
   // 和 PWA 一起启用
   // shouldPrefetch: false,
 });
