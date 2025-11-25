@@ -42,9 +42,9 @@ export default sidebar({
       children: "structure",
     },
     {
-      text: "面经",
+      text: "八股文",
       icon: "book",
-      prefix: "计算机基础/",
+      prefix: "八股文/",
       children: "structure",
     },
     // {

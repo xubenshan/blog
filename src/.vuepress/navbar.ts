@@ -125,12 +125,14 @@ export default navbar([
     icon: "pencil",
     link: "/tools/linux/Linux入门.md",
   },
+
   {
-    text: "面经",
+    text: "八股文",
     icon: "book",
-    prefix: "/工具/",
-    link: "https://theme-hope.vuejs.press/zh/",
+    link: "/八股文/",
+    // link: "https://theme-hope.vuejs.press/zh/",
   },
+
   // {
   //   text: "计算机基础",
   //   icon: "book",

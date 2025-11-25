@@ -17,7 +17,19 @@ export default defineUserConfig({
   title: "C++转码笔记",
   description: "记录自己的C++转码所学知识",
   head: [
-    ["link", { rel: "icon", href: "https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/logo.png" }]
+    ["link", { rel: "icon", href: "https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/logo.png" }],
+    ["link", { rel: "preconnect", href: "https://fonts.gstatic.com" }],
+    [
+      "link",
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+    ],
+    [
+      "link",
+      {
+        href: "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200..900&display=swap",
+        rel: "stylesheet",
+      },
+    ],
   ],
 
   theme,
