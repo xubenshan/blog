@@ -31,10 +31,13 @@ export default hopeTheme({
   // 加密配置
   encrypt: {
     config: {
-      "/demo/encrypt.html": {
-        hint: "Password: 1234",
-        password: "1234",
-      },
+        "/八股文/": {
+          password: ["1234"],
+          hint: "请添加管理员微信，获取文章密码",
+        },
+        // hint: "Password: 1234",
+        // password: "1234",
+
     },
   },
 
@@ -52,6 +55,7 @@ export default hopeTheme({
     attrs: true,
     codeTabs: true,
     component: true,
+    revealjs: true,//ppt
     demo: true,
     figure: true,
     gfm: true,
@@ -61,6 +65,7 @@ export default hopeTheme({
     mark: true,
     plantuml: true,
     spoiler: true,
+    hint: true,
     stylize: [
       {
         matcher: "Recommended",

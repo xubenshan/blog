@@ -1,11 +1,15 @@
 ---
 title: C++入门
+author: 小熊
 #icon: gears
 order: 1
 ---
 
 # C++入门
 
+:::note
+根据B站视频以及黑马笔记整理的笔记
+:::
 > 开发环境：Clion IDE gcc编译器
 
 ## 搭建开发环境

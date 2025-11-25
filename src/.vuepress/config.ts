@@ -26,7 +26,7 @@ export default defineUserConfig({
     [
       "link",
       {
-        href: "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200..900&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300..900&display=swap",
         rel: "stylesheet",
       },
     ],
@@ -53,13 +53,13 @@ export default defineUserConfig({
           path: '/',
           title: '通知公告',
           content: '欢迎来到C++转码笔记，希望在这里你能有所收获！',
-          actions: [
-            {
-              text: 'Primary Action',
-              link: 'https://example.com',
-              type: 'primary',
-            },
-          ],
+          // actions: [
+          //   {
+          //     text: '',
+          //     link: 'https://example.com',
+          //     type: 'primary',
+          //   },
+          // ],
         },
       ],
     }),
