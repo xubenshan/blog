@@ -1,5 +1,5 @@
 ---
- title: 模板及STL技术
+title: 模板及STL技术
 #icon: gears
 order: 3
 ---
@@ -180,7 +180,7 @@ int main() {
 
 **示例：**
 
-```C++
+```cpp
 //利用模板提供通用的交换函数
 template<class T>
 void mySwap(T& a, T& b)
@@ -230,16 +230,6 @@ int main() {
 总结：
 
 * 使用模板时必须确定出通用数据类型T，并且能够推导出一致的类型
-
-
-
-
-
-
-
-
-
-
 
 #### 1.2.3 函数模板案例
 
