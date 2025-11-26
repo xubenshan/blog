@@ -27,6 +27,18 @@ export default navbar([
         prefix: "",
         children: ["C++提高编程"],
       },
+      {
+        text: "",
+        icon: "lightbulb",
+        prefix: "",
+        children: ["项目构建工具"],
+      },
+      {
+        text: "",
+        icon: "lightbulb",
+        prefix: "",
+        children: ["C++新特性"],
+      },
     ],
   },
 
@@ -37,7 +49,7 @@ export default navbar([
     children: [
       {
         text: "搜索专题",
-        icon: "lightbulb",
+        // icon: "lightbulb",
         link: "search/",
       },
       // {
@@ -47,7 +59,7 @@ export default navbar([
       // },
       {
         text: "DP专题",
-        icon: "lightbulb",
+        // icon: "lightbulb",
         link: "DP/",
       }
     ],

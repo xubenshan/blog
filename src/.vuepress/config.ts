@@ -48,18 +48,18 @@ export default defineUserConfig({
     noticePlugin({
       config: [
         {
-          showOnce: true,
+          // showOnce: true,
           // confirm: true,
           path: '/',
           title: '通知公告',
           content: '欢迎来到C++转码笔记，希望在这里你能有所收获！',
-          // actions: [
-          //   {
-          //     text: '',
-          //     link: 'https://example.com',
-          //     type: 'primary',
-          //   },
-          // ],
+          actions: [
+            {
+              text: '添加管理员微信',
+              link: 'https://example.com',
+              type: 'primary',
+            },
+          ],
         },
       ],
     }),
