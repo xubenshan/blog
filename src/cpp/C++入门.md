@@ -8,7 +8,7 @@ order: 1
 # C++入门
 
 :::note
-根据B站视频以及黑马笔记整理的笔记
+根据B站视频、黑马笔记、《C++ Primer Plus（第6版）中文版》整理的笔记
 :::
 > 开发环境：Clion IDE gcc编译器
 
@@ -433,7 +433,10 @@ int main() {
 
 ```
 
+配对原则：在 C++ 中，new 和 delete 必须严格配对。
 
+- 如果你用 new 申请单个对象，就用 delete 释放。
+- 如果你用 new type[] 申请**数组**，就必须用 delete[] 释放。
 
 
 

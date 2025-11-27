@@ -53,10 +53,6 @@ PPT模板：
 
 
 
-
-
-
-
 ### 1.2 函数模板
 
 
@@ -894,6 +890,8 @@ int main() {
 
 
 
+#### 类模板具体化
+
 
 
 
@@ -1562,6 +1560,36 @@ int main() {
 总结：
 
 能够利用所学知识点实现通用的数组
+
+
+
+```cpp
+template <class T,int len=10>
+class Array
+{
+private:
+	T items[len];      // 数组元素。
+public:
+	Array()    {}    	   // 默认构造函数。
+	~Array() {}         // 析构函数
+	T& operator[](int ii) { return items[ii]; }  // 重载操作符[]，可以修改数组中的元素。
+	const T& operator[](int ii) const { return items[ii]; }  // 重载操作符[]，不能修改数组中的元素。函数是只读函数，那么返回值也必须是只读数据。
+};
+```
+
+运算符重载的两个函数看似参数列表是一样的，其实不一样，构成了函数重载。
+
+![image-20251127134523147](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251127134523147.png)
+
+常量指针、指针常量
+
+左定值、右定向（const在指针左边或右边）
+
+
+
+
+
+
 
 
 

@@ -27,6 +27,14 @@ export default navbar([
         prefix: "",
         children: ["C++提高编程"],
       },
+
+
+      {
+        text: "",
+        icon: "lightbulb",
+        prefix: "",
+        children: ["C++新特性"],
+      },
       {
         text: "",
         icon: "lightbulb",
@@ -34,10 +42,8 @@ export default navbar([
         children: ["项目构建工具"],
       },
       {
-        text: "",
-        icon: "lightbulb",
-        prefix: "",
-        children: ["C++新特性"],
+        text: "C++ Primer Plus（第6版）代码仓库",
+        link: "https://github.com/ShujiaHuang/Cpp-Primer-Plus-6th",
       },
     ],
   },
@@ -130,6 +136,12 @@ export default navbar([
         // icon: "lightbulb",
         link: "https://github.com/youngyangyang04/coroutine-lib/tree/main",
       },
+      {
+        text: "C++全栈聊天项目",
+        // icon: "lightbulb",
+        link: "https://www.bilibili.com/video/BV1k2421K7ZB?spm_id_from=333.788.videopod.sections&vd_source=5940e85c0b18a907a0fdea51914b4f65",
+      },
+
     ],
   },
   {

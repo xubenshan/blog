@@ -32,7 +32,7 @@ export default sidebar({
     {
       text: "项目实战",
       icon: "book",
-      prefix: "计算机基础/",
+      prefix: "project/",
       children: "structure",
     },
     {
