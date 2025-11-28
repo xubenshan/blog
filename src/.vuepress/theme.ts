@@ -5,7 +5,7 @@ import sidebar from "./sidebar.js";
 
 export default hopeTheme({
   hostname: "https://vuepress-theme-hope-docs-demo.netlify.app",
-
+  fullscreen: true,
   author: {
     name: "小熊",
     url: "https://github.com/xubenshan/blog",

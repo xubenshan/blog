@@ -13,7 +13,7 @@ tagline: 双非本北邮硕通信工程转码之路
 actions:
   - text: 开始阅读
     icon: lightbulb
-    link: ./cpp/
+    link: ./home.md
     type: primary
 
   - text: Github

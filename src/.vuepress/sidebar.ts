@@ -25,7 +25,7 @@ export default sidebar({
     },
     {
       text: "工具",
-      icon: "tool",
+      icon: "star",
       prefix: "tools/",
       children: "structure",
     },

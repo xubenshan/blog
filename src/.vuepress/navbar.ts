@@ -51,24 +51,25 @@ export default navbar([
   {
     text: "算法",
     icon: "comment",
-    prefix: "/algorithm/",
-    children: [
-      {
-        text: "搜索专题",
-        // icon: "lightbulb",
-        link: "search/",
-      },
-      // {
-      //   text: "Linux入门",
-      //   // icon: "lightbulb",
-      //   link: "/tools/linux/Git项目搭建.md",
-      // },
-      {
-        text: "DP专题",
-        // icon: "lightbulb",
-        link: "DP/",
-      }
-    ],
+    link: "/algorithm/README.md"
+    // prefix: "/algorithm/",
+    // children: [
+    //   {
+    //     text: "搜索专题",
+    //     // icon: "lightbulb",
+    //     link: "search/",
+    //   },
+    //   // {
+    //   //   text: "Linux入门",
+    //   //   // icon: "lightbulb",
+    //   //   link: "/tools/linux/Git项目搭建.md",
+    //   // },
+    //   {
+    //     text: "DP专题",
+    //     // icon: "lightbulb",
+    //     link: "DP/",
+    //   }
+    // ],
   },
 
   {
@@ -112,7 +113,7 @@ export default navbar([
       {
         text: "Docker",
         // icon: "lightbulb",
-        link: "/tools/Docker.md",
+        link: "/tools/docker/Docker.md",
       }
     ],
   },
