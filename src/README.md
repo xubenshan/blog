@@ -8,7 +8,7 @@ bgImageDark: https://theme-hope-assets.vuejs.press/bg/6-dark.svg
 bgImageStyle:
   background-attachment: fixed
 heroText: C++转码笔记
-tagline: 双非本北邮硕通信工程转码之路 
+tagline: 「C++学习 + 面试指南」双非本北邮硕通信工程转码之路 
 
 actions:
   - text: 开始阅读
@@ -16,7 +16,7 @@ actions:
     link: ./home.md
     type: primary
 
-  - text: Github
+  - text: 学习路线
     icon: circle-info
     link: ./guide/
 
