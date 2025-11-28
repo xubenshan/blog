@@ -19,13 +19,13 @@ export default sidebar({
     },
     {
       text: "计算机基础",
-      icon: "bookmark",
+      icon: "computer",
       prefix: "计算机基础/",
       children: "structure",
     },
     {
       text: "工具",
-      icon: "star",
+      icon: "tool",
       prefix: "tools/",
       children: "structure",
     },
