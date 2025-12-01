@@ -17,7 +17,7 @@ actions:
     type: primary
 
   - text: 学习路线
-    icon: circle-info
+    icon: brands:github
     link: ./guide/
 
 features:
@@ -74,7 +74,7 @@ copyright: false
 ---
 
 
-## :rotating_light: 网站信息
+## ::solid:home:: 网站信息
 网站的搭建初衷是为了方便浏览自己在学习`C++`过程中所整理的笔记，并且形成自己的知识库，方便日后回顾复习。
 本人的基本情况如下：双非本北邮硕，目前研一，研究方向是通感一体化，做通信的同学应该知道这个方向很一般，并不好找工作。转码才是唯一的选择。在`C++`和`JAVA`中选择了`C++`。
 
@@ -89,14 +89,14 @@ copyright: false
 * 必备技能
 * 设计模式
 
-## 学习路线
+## ::user:: 学习路线
 
 
-## 目前进度
+## ::solid:code:: 目前进度
 
 目前还处于C++语言的学习。
 
-## 保持联系
+## ::regular:heart:: 保持联系
 管理员的联系方式如下：
 
 

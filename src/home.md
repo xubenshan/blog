@@ -1,10 +1,12 @@
 ---
-icon: creative
-title: JavaGuide（Java学习&面试指南）
+#icon: house
+title: CppGuide（Cpp学习路线）
 ---
 
-::: tip 友情提示
 
+
+::: tip 友情提示
+该学习路线参考Carl知识星球的25版C++学习路线。
 - **面试专版**：准备 Java 面试的小伙伴可以考虑面试专版：**[《Java 面试指北 》](./zhuanlan/java-mian-shi-zhi-bei.md)** (质量很高，专为面试打造，配合 JavaGuide 食用)。
 - **知识星球**：专属面试小册/一对一交流/简历修改/专属求职指南，欢迎加入 **[JavaGuide 知识星球](./about-the-author/zhishixingqiu-two-years.md)**（点击链接即可查看星球的详细介绍，一定确定自己真的需要再加入）。
 - **使用建议** ：有水平的面试官都是顺着项目经历挖掘技术问题。一定不要死记硬背技术八股文！详细的学习建议请参考：[JavaGuide 使用建议](./javaguide/use-suggestion.md)。
@@ -13,71 +15,42 @@ title: JavaGuide（Java学习&面试指南）
 
 :::
 
-## Java
+## Cpp
 
-### 基础
+需要学习C++的基本语法、面向对象特性、内存管理、并发编程、STL。
 
-**知识点/面试题总结** : (必看:+1: )：
 
-- [Java 基础常见知识点&面试题总结(上)](./java/basis/java-basic-questions-01.md)
-- [Java 基础常见知识点&面试题总结(中)](./java/basis/java-basic-questions-02.md)
-- [Java 基础常见知识点&面试题总结(下)](./java/basis/java-basic-questions-03.md)
+### 视频推荐
+- [黑马视频]()
 
-**重要知识点详解**：
 
-- [为什么 Java 中只有值传递？](./java/basis/why-there-only-value-passing-in-java.md)
-- [Java 序列化详解](./java/basis/serialization.md)
-- [泛型&通配符详解](./java/basis/generics-and-wildcards.md)
-- [Java 反射机制详解](./java/basis/reflection.md)
-- [Java 代理模式详解](./java/basis/proxy.md)
-- [BigDecimal 详解](./java/basis/bigdecimal.md)
-- [Java 魔法类 Unsafe 详解](./java/basis/unsafe.md)
-- [Java SPI 机制详解](./java/basis/spi.md)
-- [Java 语法糖详解](./java/basis/syntactic-sugar.md)
+### 书籍推荐
 
-### 集合
+经典中的经典：
 
-**知识点/面试题总结**：
+* 《C++ Primer Plus》或《C++ Primer》
+* 《Essential C++》
+* 《Effective STL》
+* 《STL源码剖析》
 
-- [Java 集合常见知识点&面试题总结(上)](./java/collection/java-collection-questions-01.md) (必看 :+1:)
-- [Java 集合常见知识点&面试题总结(下)](./java/collection/java-collection-questions-02.md) (必看 :+1:)
-- [Java 集合使用注意事项总结](./java/collection/java-collection-precautions-for-use.md)
 
-**源码分析**：
+## 数据结构与算法
 
-- [ArrayList 核心源码+扩容机制分析](./java/collection/arraylist-source-code.md)
-- [LinkedList 核心源码分析](./java/collection/linkedlist-source-code.md)
-- [HashMap 核心源码+底层数据结构分析](./java/collection/hashmap-source-code.md)
-- [ConcurrentHashMap 核心源码+底层数据结构分析](./java/collection/concurrent-hash-map-source-code.md)
-- [LinkedHashMap 核心源码分析](./java/collection/linkedhashmap-source-code.md)
-- [CopyOnWriteArrayList 核心源码分析](./java/collection/copyonwritearraylist-source-code.md)
-- [ArrayBlockingQueue 核心源码分析](./java/collection/arrayblockingqueue-source-code.md)
-- [PriorityQueue 核心源码分析](./java/collection/priorityqueue-source-code.md)
-- [DelayQueue 核心源码分析](./java/collection/priorityqueue-source-code.md)
+## 计算机基础
+计算机基础包括：计算机网络、数据库、操作系统、数据库、计算机组成（考察较少）。
 
-### IO
+## 网络编程
+## 工具
+### Git版本管理工具
+### Docker容器
+### Linux
+### K8S
 
-- [IO 基础知识总结](./java/io/io-basis.md)
-- [IO 设计模式总结](./java/io/io-design-patterns.md)
-- [IO 模型详解](./java/io/io-model.md)
-- [NIO 核心知识总结](./java/io/nio-basis.md)
+## C++设计模式
 
-### 并发
+## 项目
 
-**知识点/面试题总结** : (必看 :+1:)
 
-- [Java 并发常见知识点&面试题总结（上）](./java/concurrent/java-concurrent-questions-01.md)
-- [Java 并发常见知识点&面试题总结（中）](./java/concurrent/java-concurrent-questions-02.md)
-- [Java 并发常见知识点&面试题总结（下）](./java/concurrent/java-concurrent-questions-03.md)
 
-**重要知识点详解**：
 
-- [乐观锁和悲观锁详解](./java/concurrent/optimistic-lock-and-pessimistic-lock.md)
-- [CAS 详解](./java/concurrent/cas.md)
-- [JMM（Java 内存模型）详解](./java/concurrent/jmm.md)
-- **线程池**：[Java 线程池详解](./java/concurrent/java-thread-pool-summary.md)、[Java 线程池最佳实践](./java/concurrent/java-thread-pool-best-practices.md)
-- [ThreadLocal 详解](./java/concurrent/threadlocal.md)
-- [Java 并发容器总结](./java/concurrent/java-concurrent-collections.md)
-- [Atomic 原子类总结](./java/concurrent/atomic-classes.md)
-- [AQS 详解](./java/concurrent/aqs.md)
-- [CompletableFuture 详解](./java/concurrent/completablefuture-intro.md)
+
