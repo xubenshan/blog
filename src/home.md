@@ -28,8 +28,7 @@ title: CppGuide（Cpp学习路线）
 
 经典中的经典：
 
-* 《C++ Primer Plus》或《C++ Primer》
-* 《Essential C++》
+* 《C++ Primer Plus》或《C++ Primer》* 《Essential C++》
 * 《Effective STL》
 * 《STL源码剖析》
 
