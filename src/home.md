@@ -19,7 +19,8 @@ title: CppGuide（Cpp学习路线）
 
 需要学习C++的基本语法、面向对象特性、内存管理、并发编程、STL。
 
-[Go语言](./go/golang.md)
+[Go语言入门](./go/golang.md)
+[Go参考手册](./go/Go参考手册.md)
 ### 视频推荐
 - [黑马视频]()
 
