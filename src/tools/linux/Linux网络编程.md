@@ -14,7 +14,7 @@
 
 ![image-20251213144405086](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251213144405086.png)
 
-### 并发
+### 并发服务器
 
 并发服务器是指服务器能够同时处理多个客户端请求 
 
