@@ -41,3 +41,72 @@ decltype推导规则（按步骤）：
 4）如果上面的条件都不满足，则var的类型与expression的类型相同。
 
 如果需要多次使用decltype，可以结合typedef和using。
+
+
+
+## 移动构造函数
+
+复制构造和移动构造的区别：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163244970.png" alt="image-20251230163244970" style="zoom: 33%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163257764.png" alt="image-20251230163257764" style="zoom: 33%;" />
+
+复制构造的对象各自占有独立的堆内存，而移动构造，只有一个堆内存。复制构造函数要将临时对象的资源复制到目标对象。而移动构造函数要将临时对象的资源移动到目标对象。
+
+```cpp
+#include <iostream>
+#include <cstring>
+
+class MyString {
+public:
+    char* data;
+
+    MyString(const char* str) {
+        int length = strlen(str);
+        data = new char[length + 1];
+        strcpy(data, str);
+    }
+
+    ~MyString() {
+        delete[] data;
+    }
+
+    // 移动构造函数
+    MyString(MyString&& other) noexcept {
+        data = other.data;
+        other.data = nullptr;
+    }
+};
+
+int main() {
+    MyString str1("Hello");
+    MyString str2 = std::move(str1);  // move函数把str1转化为右值引用
+
+    std::cout << str2.data << std::endl;  // 输出 "Hello"
+
+    return 0;
+}
+```
+
+移动构造函数与其他构造函数相比，参数类型前面多了一个`&&`，表示右值引用。在C++11之前，我们无法直接访问临时对象（右值），因此无法定义移动构造函数。但是通过引入右值引用，我们可以获取到临时对象，并将其资源移动到目标对象中。
+
+在移动构造函数中，通常会执行以下操作：
+
+- 将源对象的资源指针或资源句柄复制给目标对象，避免深拷贝。
+- 将源对象的资源指针或资源句柄置为`nullptr`，以确保源对象析构时不会释放资源。
+
+拷贝构造函数的参数是左值引用。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

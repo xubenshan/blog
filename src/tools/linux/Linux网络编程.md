@@ -16,15 +16,21 @@
 
 ### 并发服务器
 
-并发服务器是指服务器能够同时处理多个客户端请求 
+所谓的并发是指服务器能够同时处理多个客户端的请求 
 
 多个请求同时到达或被处理
 
+多进程并发服务器：accept函数循环阻塞等待客户端的连接请求，当接收到客户端请求时，跟客户端建立连接之后fork一个子进程，与该客户端进行通信。
 
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251219174323543.png" alt="image-20251219174323543" style="zoom: 25%;" />
+
+
+
+多线程并发服务器：当服务器与客户端 TCP 完成连接后，通过 pthread_create() 函数创建线程，然后将「已连接 Socket」的文件描述符传递给线程函数，接着在线程里和客户端进行通信，从而达到并发处理的目的。
 
 ### C/S架构
 
-
+还有一个架构叫B/S架构
 
 
 
@@ -34,18 +40,17 @@
 
 小端：**数据的低位保存在内存的低地址中，而数据的高位保存在内存的高地址中**。
 
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251219220320796.png" alt="image-20251219220320796" style="zoom:50%;" />
+
 计算机采用的是小端法，而网络数据流采用大端字节序 。所以要进行网络字节序和主机字节序的转换。
 
 ```cpp
 # 所需函数
 htonl 本地转网络（IP）
 htons 本地转网络（端口）
-ntohl
+ntohl  
 ntohs
 点分十进制->string->atoi函数->int->htonl函数->网络字节序
-
-   
-    
 ```
 
 客户端连接的时候需要用到pton函数：
@@ -64,7 +69,19 @@ ntohs
 
 127.0.0.1是本地回环地址。
 
+### 阻塞和非阻塞
 
+产生阻塞的场景：读设备文件、读网络文件。读常规文件没有阻塞概念。
+
+现在明确一下阻塞（Block）这个概念。当进程调用一个阻塞的系统函数时，该进程被置于睡眠（Sleep）状态，这时内核调度其它进程运行，直到该进程等待的事件发生了（比如网络上接收到数据包，或者调用sleep指定的睡眠时间到了）它才有可能继续运行。
+
+与睡眠状态相对的是运行（Running）状态，在Linux内核中，处于运行状态的进程分为两种情况：+
+
+* 正在被调度执行。CPU处于该进程的上下文环境中，程序计数器（eip）里保存着该进
+  程的指令地址，通用寄存器保存着该进程运算过程的中间结果，正在执行该进程的指令正在读写该进程的地址空间。
+
+* 就绪状态。该进程不需要等待什么事件发生，随时都可以执行，但CPU暂时还在执行
+  另一个进程，所以该进程在一个就绪队列中等待被内核调度。系统中可能同时有多个就绪的进程，那么该调度谁执行呢？内核的调度算法是基于优先级和时间片的，而且会根据每个进程的运行情况动态调整它的优先级和时间片，让每个进程都能比较公平地得到机会执行，同时要兼顾用户体验，不能让和用户交互的进程响应太慢
 
 ## Socket
 
@@ -88,6 +105,8 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 
 使用TCP协议的socket交互流程： 
 
+当客户端调用connect()函数时进行TCP三次握手，当服务器accept()函数返回时，TCP连接建立。
+
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205114055065.png" alt="image-20251205114055065" style="zoom:50%;" />
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203174529382.png" alt="image-20251203174529382" style="zoom:50%;" />
@@ -108,6 +127,8 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 
 * accept函数：阻塞监听客户端连接 返回一个新的与客户端成功连接的socket文件描述符（fd）
 
+  所以客户端和服务端通信的过程会建立两个fd，一个用于监听（lfd）一个用于通信（cfd）
+
 ![image-20251205145702289](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205145702289.png)
 
 * connect函数：
@@ -116,7 +137,9 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 
 >  客户端不需要bind函数，系统会隐式绑定。
 
+### socaddr地址结构
 
+![image-20251205143541882](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205143541882.png)![image-20251205144131870](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205144131870.png)
 
 ### 简单的C/S通信案例
 
@@ -142,7 +165,7 @@ int main()
         printf("create socket error: errno=%d errmsg=%s\n", errno, strerror(errno));
         return 1;
     }
-    else
+    else 
     {
         printf("create socket success!\n");
     }
@@ -393,12 +416,6 @@ return 0;
 
 
 
-
-
-### socaddr地址结构
-
-![image-20251205143541882](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205143541882.png)![image-20251205144131870](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205144131870.png)
-
 ## TCP工作流程
 
 三次握手：
@@ -409,41 +426,335 @@ return 0;
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251204124621076.png" alt="image-20251204124621076" style="zoom: 33%;" />
 
- TCP 是一种面向连接的、可靠的，基于字节流的传输层通信协议。为两台主机提供高可靠性的数据通信服务。<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173103195.png" alt="image-20251203173103195" style="zoom:50%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173118950.png" alt="image-20251203173118950" style="zoom: 42%;" />
+ TCP 是一种面向连接的、可靠的，基于字节流的传输层通信协议。为两台主机提供高可靠性的数据通信服务。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173103195.png" alt="image-20251203173103195" style="zoom:50%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173118950.png" alt="image-20251203173118950" style="zoom: 42%;" />
 
 
-
-## 阻塞和非阻塞
-
-产生阻塞的场景：读设备文件、读网络文件。读常规文件没有阻塞概念。
-
-现在明确一下阻塞（Block）这个概念。当进程调用一个阻塞的系统函数时，该进程被置于睡眠（Sleep）状态，这时内核调度其它进程运行，直到该进程等待的事件发生了（比如网络上接收到数据包，或者调用sleep指定的睡眠时间到了）它才有可能继续运行。
-
-与睡眠状态相对的是运行（Running）状态，在Linux内核中，处于运行状态的进程分为两种情况：+
-
-* 正在被调度执行。CPU处于该进程的上下文环境中，程序计数器（eip）里保存着该进
-  程的指令地址，通用寄存器保存着该进程运算过程的中间结果，正在执行该进程的指令正在读写该进程的地址空间。
-
-* 就绪状态。该进程不需要等待什么事件发生，随时都可以执行，但CPU暂时还在执行
-  另一个进程，所以该进程在一个就绪队列中等待被内核调度。系统中可能同时有多个就绪的进程，那么该调度谁执行呢？内核的调度算法是基于优先级和时间片的，而且会根据每个进程的运行情况动态调整它的优先级和时间片，让每个进程都能比较公平地得到机会执行，同时要兼顾用户体验，不能让和用户交互的进程响应太慢
 
 ## 僵尸进程 孤儿进程
 
-子进程终止，父进程还没有回收子进程残留在内核中的资源（PCB）,称为该进程为僵尸进程。
+子进程终止，父进程还没有回收子进程残留在内核中的资源（PCB），称为该进程为僵尸进程。
 
 僵尸进程kill命令无效。
 
 孤儿进程：父进程比子进程更早终止，系统会自动给孤儿进程一个PPID。
 
+## 实现并发服务器
+
+### 多进程
+
+多进程：是为每个客户端分配一个进程来处理请求
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Gemini_Generated_Image_j0gmjxj0gmjxj0gm.png" alt="Gemini_Generated_Image_j0gmjxj0gmjxj0gm" style="zoom: 25%;" />
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <errno.h>
+
+// 信号处理函数
+void callback(int num)
+{
+    while(1)
+    {
+        pid_t pid = waitpid(-1, NULL, WNOHANG);
+        if(pid <= 0)
+        {
+            printf("子进程正在运行, 或者子进程被回收完毕了\n");
+            break;
+        }
+        printf("child die, pid = %d\n", pid);
+    }
+}
+
+int childWork(int cfd);
+int main()
+{
+    // 1. 创建监听的套接字
+    int lfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(lfd == -1)
+    {
+        perror("socket");
+        exit(0);
+    }
+
+    // 2. 将socket()返回值和本地的IP端口绑定到一起
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(10000);   // 大端端口
+    // INADDR_ANY代表本机的所有IP, 假设有三个网卡就有三个IP地址
+    // 这个宏可以代表任意一个IP地址
+    // 这个宏一般用于本地的绑定操作
+    addr.sin_addr.s_addr = INADDR_ANY;  // 这个宏的值为0 == 0.0.0.0
+    //    inet_pton(AF_INET, "192.168.237.131", &addr.sin_addr.s_addr);
+    int ret = bind(lfd, (struct sockaddr*)&addr, sizeof(addr));
+    if(ret == -1)
+    {
+        perror("bind");
+        exit(0);
+    }
+
+    // 3. 设置监听
+    ret = listen(lfd, 128);
+    if(ret == -1)
+    {
+        perror("listen");
+        exit(0);
+    }
+
+    // 注册信号的捕捉
+    struct sigaction act;
+    act.sa_flags = 0;
+    act.sa_handler = callback;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGCHLD, &act, NULL);
+
+    // 接受多个客户端连接, 对需要循环调用 accept
+    while(1)
+    {
+        // 4. 阻塞等待并接受客户端连接
+        struct sockaddr_in cliaddr;
+        int clilen = sizeof(cliaddr);
+        int cfd = accept(lfd, (struct sockaddr*)&cliaddr, &clilen);
+        if(cfd == -1)
+        {
+            if(errno == EINTR)
+            {
+                // accept调用被信号中断了, 解除阻塞, 返回了-1
+                // 重新调用一次accept
+                continue;
+            }
+            perror("accept");
+            exit(0);
+ 
+        }
+        // 打印客户端的地址信息
+        char ip[24] = {0};
+        printf("客户端的IP地址: %s, 端口: %d\n",
+               inet_ntop(AF_INET, &cliaddr.sin_addr.s_addr, ip, sizeof(ip)),
+               ntohs(cliaddr.sin_port));
+        // 新的连接已经建立了, 创建子进程, 让子进程和这个客户端通信
+        pid_t pid = fork();
+        if(pid == 0)
+        {
+            // 子进程 -> 和客户端通信
+            // 通信的文件描述符cfd被拷贝到子进程中
+            // 子进程不负责监听
+            close(lfd);
+            while(1)
+            {
+                int ret = childWork(cfd);
+                if(ret <=0)
+                {
+                    break;
+                }
+            }
+            // 退出子进程
+            close(cfd);
+            exit(0);
+        }
+        else if(pid > 0)
+        {
+            // 父进程不和客户端通信
+            close(cfd);
+        }
+    }
+    return 0;
+}
 
 
-## I/O多路复用
+// 5. 和客户端通信
+int childWork(int cfd)
+{
 
-### select
+    // 接收数据
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    int len = read(cfd, buf, sizeof(buf));
+    if(len > 0)
+    {
+        printf("客户端say: %s\n", buf);
+        write(cfd, buf, len);
+    }
+    else if(len  == 0)
+    {
+        printf("客户端断开了连接...\n");
+    }
+    else
+    {
+        perror("read");
+    }
 
-### poll
+    return len;
+}
+```
 
-### epoll
+### 多线程
+
+多线程：当服务器与客户端 TCP 完成连接后，通过 pthread_create() 函数创建线程，然后将「已连接 Socket」的文件描述符传递给线程函数，接着在线程里和客户端进行通信。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Gemini_Generated_Image_gwkxdkgwkxdkgwkx.png" alt="Gemini_Generated_Image_gwkxdkgwkxdkgwkx" style="zoom: 33%;" />
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+
+struct SockInfo
+{
+    int fd;                      // 通信
+    pthread_t tid;               // 线程ID
+    struct sockaddr_in addr;     // 地址信息
+};
+
+struct SockInfo infos[128];
+
+void* working(void* arg)
+{
+    while(1)
+    {
+        struct SockInfo* info = (struct SockInfo*)arg;
+        // 接收数据
+        char buf[1024];
+        int ret = read(info->fd, buf, sizeof(buf));
+        if(ret == 0)
+        {
+            printf("客户端已经关闭连接...\n");
+            info->fd = -1;
+            break;
+        }
+        else if(ret == -1)
+        {
+            printf("接收数据失败...\n");
+            info->fd = -1;
+            break;
+        }
+        else
+        {
+            write(info->fd, buf, strlen(buf)+1);
+        }
+    }
+    return NULL;
+}
+
+int main()
+{
+    // 1. 创建用于监听的套接字
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(fd == -1)
+    {
+        perror("socket");
+        exit(0);
+    }
+
+    // 2. 绑定
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;          // ipv4
+    addr.sin_port = htons(8989);        // 字节序应该是网络字节序
+    addr.sin_addr.s_addr =  INADDR_ANY; // == 0, 获取IP的操作交给了内核
+    int ret = bind(fd, (struct sockaddr*)&addr, sizeof(addr));
+    if(ret == -1)
+    {
+        perror("bind");
+        exit(0);
+    }
+
+    // 3.设置监听
+    ret = listen(fd, 100);
+    if(ret == -1)
+    {
+        perror("listen");
+        exit(0);
+    }
+
+    // 4. 等待, 接受连接请求
+    int len = sizeof(struct sockaddr);
+
+    // 数据初始化
+    int max = sizeof(infos) / sizeof(infos[0]);
+    for(int i=0; i<max; ++i)
+    {
+        bzero(&infos[i], sizeof(infos[i]));
+        infos[i].fd = -1;
+        infos[i].tid = -1;
+    }
+
+    // 父进程监听, 子进程通信
+    while(1)
+    {
+        // 创建子线程
+        struct SockInfo* pinfo;
+        for(int i=0; i<max; ++i)
+        {
+            if(infos[i].fd == -1)
+            {
+                pinfo = &infos[i];
+                break;
+            }
+            if(i == max-1)
+            {
+                sleep(1);
+                i--;
+            }
+        }
+
+        int connfd = accept(fd, (struct sockaddr*)&pinfo->addr, &len);
+        printf("parent thread, connfd: %d\n", connfd);
+        if(connfd == -1)
+        {
+            perror("accept");
+            exit(0);
+        }
+        pinfo->fd = connfd;
+        pthread_create(&pinfo->tid, NULL, working, pinfo);
+        pthread_detach(pinfo->tid);
+    }
+
+    // 释放资源
+    close(fd);  // 监听
+
+    return 0;
+}
+```
+
+多路复用：用一个进程来维护多个Socket。
+
+与多进程和多线程技术相比，I/O多路复用技术的最大优势是系统开销小，系统不必创建进程/线程，也不必维护这些进程/线程，从而大大减小了系统的开销。
+
+### I/O多路复用
+
+#### select
+
+让内核去监听客户端连接(lfd)，当有客户端进行连接时 它会让server去调用accept(当有连接时才去立即调用，而不是一直阻塞等待)得到一个用于通信的cfd，最后让内核监管着lfd和所有cfd。
+
+#### poll
+
+#### epoll
+
+### 网络通信和本地通信
+
+本地通信：
+
+* pipe管道
+* fifo
+* mmap内存映射
+* 信号
+* 本地套接字
+
+网络通信：
+
+* 多进程
+* 多线程
+* I/O多路复用
 
 
 
