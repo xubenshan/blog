@@ -241,7 +241,15 @@ git remote -v
 
 # 删除远程库 （只是解除本地库与远程库的关系，不是物理上的删除远程库。要想真的删除远程库，必须在github上面操作）
 git remote rm <name>
+
+# clone和pull的区别
+git clone 是从零开始将整个远程仓库复制到本地，创建全新的本地仓库；
+git pull 是在连接上远程仓库的基础上，从远程拉取最新代码并自动合并到当前本地分支，实现本地更新
 ```
+
+[clone和pull的区别](https://cloud.tencent.com/developer/article/2108853)
+
+
 
 ### 使用gitee
 
