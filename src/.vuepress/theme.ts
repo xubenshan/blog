@@ -22,17 +22,7 @@ export default hopeTheme({
   navbar,
 
   // 侧边栏
-  sidebar: {
-    // 1. 针对 "入门项目" 文件夹，手动列出你想显示的文件
-    "/project/hello-project/": [
-      "chatroom",          // 对应 chatroom.md
-      "TinyWebserver",     // 对应 TinyWebserver.md
-      // "memorypool"      <-- 只要不把 memorypool 写在这里，它就不会出现在侧边栏！
-    ],
-
-    // 2. 其他所有路径，依然保持自动生成（兜底策略）
-    "/": "structure",
-  },
+  sidebar,
 
   // 页脚
   footer: "欢迎来到C++转码笔记",
