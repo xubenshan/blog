@@ -1,3 +1,4 @@
+# BloomFilter原理
 BloomFilter(布隆过滤器)是一种用于判断元素是否属于集合的概率数据结构。它具有空间效率高和查询时间快的特点,但是存在一定的误判率。下面我将详细介绍BloomFilter的原理。
 
 ## BloomFilter的基本概念
