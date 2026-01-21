@@ -1,11 +1,13 @@
 # Linux入门
 
+> 参考：[韩顺平一周学会Linux](bilibili.com/video/BV1Sv411r7vd/)
+
 ## 前置知识
 
 * VMware：虚拟机，用来安装Linux系统。
 * Linux系统：比如Ubuntu、CentOS。
 * xshell：通过ssh连接到Linux系统
-* vscode：远程连接Linux系统
+* vscode：ssh远程连接Linux系统进行开发
 
 Linux是操作系统
 
@@ -95,6 +97,10 @@ sudo systemctl status ssh
   > 通过命令ldd --version 查看glibc版本发现低于2.28。
   >
   > 解决办法：回退vscode版本1.98。
+
+在终端中好用的快捷键：ctrl+a光标跳到开头 ctrl+e光标跳到末尾 ctrl+u清除一行
+
+> 终端就是用户和操作系统进行交互的窗口。终端内置命令行解释器，比如shell cmd powershell bash。命令行解释器的作用是把用户输入的命令进行解析，交给操作系统来执行命令， 然后把结果返回到终端。
 
 ## 目录结构
 
@@ -439,11 +445,11 @@ ping主机名的时候，会去host文件中寻找有没有该主机名和ip地�
 
 ## 进程
 
- 进程：执行的程序 PID：每个进程会分配一个ID号
+ 进程：执行的程序  
+
+PID：每个进程会分配一个ID号
 
 进程：前台进程（屏幕可以直接看到的）、后台进程
-
- ![无标题-2025-10-24-1659](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/%E6%97%A0%E6%A0%87%E9%A2%98-2025-10-24-1659.svg)
 
 僵死进程：进程已经终止了，但是还占用内存资源。
 
@@ -575,7 +581,5 @@ sudo apt-get source package 下载包的源代码
 
 阿里镜像站：https://developer.aliyun.com/mirror/ubuntu?spm=a2c6h.13651102.0.0.3e221b11gzsfXw
 
-ssh就是远程登陆服务器的常用协议。
-
-
+ssh就是远程连接的常用协议。
 
