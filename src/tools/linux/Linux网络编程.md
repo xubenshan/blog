@@ -424,13 +424,7 @@ return 0;
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173103195.png" alt="image-20251203173103195" style="zoom:50%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173118950.png" alt="image-20251203173118950" style="zoom: 42%;" />
 
-## 僵尸进程 孤儿进程
 
-子进程终止，父进程还没有回收子进程残留在内核中的资源（PCB），称为该进程为僵尸进程。
-
-僵尸进程kill命令无效。
-
-孤儿进程：父进程比子进程更早终止，系统会自动给孤儿进程一个PPID。
 
 ## 实现并发服务器
 

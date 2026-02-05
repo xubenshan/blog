@@ -100,7 +100,7 @@ sudo systemctl status ssh
 
 在终端中好用的快捷键：ctrl+a光标跳到开头 ctrl+e光标跳到末尾 ctrl+u清除一行
 
-> 终端就是用户和操作系统进行交互的窗口。终端内置命令行解释器，比如shell cmd powershell bash。命令行解释器的作用是把用户输入的命令进行解析，交给操作系统来执行命令， 然后把结果返回到终端。
+> 终端就是用户和操作系统进行交互的窗口。终端内置命令行解释器，比如shell cmd powershell bash（属于shell的一种）。命令行解释器的作用是把用户输入的命令进行解析，交给操作系统来执行命令， 然后把结果返回到终端。
 
 ## 目录结构
 
@@ -581,5 +581,5 @@ sudo apt-get source package 下载包的源代码
 
 阿里镜像站：https://developer.aliyun.com/mirror/ubuntu?spm=a2c6h.13651102.0.0.3e221b11gzsfXw
 
-ssh就是远程连接的常用协议。
+ssh是远程连接的常用协议。
 
