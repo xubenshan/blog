@@ -307,7 +307,13 @@ git push origin master
 
 <img src="https://cdn.jsdelivr.net/gh/xubenshan/pic-blog@main/img/image-20220817071019403.png" alt="image-20220817071019403" style="zoom:80%;" />
 
+* 问题三：`git push -u origin main `报错：`error: src refspec main does not match any`
 
+![image-20260211203030253](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260211203030253.png)
+
+产生原因：本地Git仓库没有叫做main的分支。当你输入 `git push -u origin main` 时，Git 会尝试把本地的 `main` 分支推送到远程。
+
+解决办法：执行`git branch -M main`，将分支重命名为main。
 
 ## **Git操作**
 

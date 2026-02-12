@@ -21,9 +21,7 @@
 
 ### 预读入缓输出机制  
 
-### open、read和write函数
-
-
+### open、read和write函数 
 
  ## 文件描述符（File Descriptor）
 

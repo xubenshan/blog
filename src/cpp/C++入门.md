@@ -14,6 +14,51 @@ order: 1
 
 ## 搭建开发环境
 
+### vscode远程连接Linux服务器
+
+vscode这边只需要安装C++、CMake Tools插件即可。
+
+我们需要搭建Linux的C++开发环境。我采用的服务器是Ubuntu22.04。需要在终端执行以下命令。
+
+```bash
+# 1.更新包列表: 更新包管理器的包列表，确保你能从最新的仓库中获取软件。
+sudo apt update
+
+# 2.安装 GCC 编译器 : GCC 是 GNU Compiler Collection 的简称，是最常用的C 和 C++ 编译器。
+sudo apt install gcc
+
+# 3.安装构建工具: build-essential 包提供了很多开发标准C和C++程序所需的工具。
+# 包括 g++（GNU C++ 编译器）、make（用于自动化编译的工具）和一些其他必要的库和开发文件。
+sudo apt install build-essential
+
+# 3.安装调试工具
+sudo apt install gdb
+ 
+# 3.安装检测内存泄漏工具 valgrind
+sudo apt install valgrind
+
+# Valgrind 主要用于内存泄露检测、内存调试以及性能分析的工具。
+
+# 安装其他 我买的是阿里云服务器，没有执行这条命令，也可以进行远程连接。
+sudo apt install openssh-server     # 安装 OpenSSH 服务器，以支持 ssh 连接
+```
+
+判断开发环境是否搭建完成：
+
+```cpp
+#include <iostream>
+
+using std::cout;
+using std::endl;
+
+int main() {
+    cout << "Hello, world!" << endl;
+    return 0;
+}
+```
+
+![image-20260208163318640](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260208163318640.png)
+
 ### CLion配置C++环境
 
 为了能在控制台正确显示中文，需要在main函数中加入以下代码：
@@ -128,7 +173,7 @@ C/C++ Extension Pack
 
 
 
-C++常用的编译器：Clang  GCC（Linux） MSVC（微软的 比如VS就自带MSVC）
+C++常用的编译器：Clang（macos）  GCC（Linux） MSVC（微软的 比如VS就自带MSVC）
 
 编译有四个过程（Toolchain）：预处理 编译 汇编 链接
 
