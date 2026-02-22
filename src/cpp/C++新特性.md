@@ -4,7 +4,9 @@ title: C++新特性
 order: 5
 ---
 # C++新特性
-> 参考侯捷的视频
+> 参考侯捷的视频以及网上的各种资料。包括C++11 C++14 C++17
+
+
 
 ## auto自动推导类型
 
@@ -24,7 +26,7 @@ order: 5
 
 ## 函数模板高级
 
-在[C++](https://baike.baidu.com/item/C%2B%2B)11中，decltype[操作符](https://baike.baidu.com/item/操作符/8978896)，用于查询[表达式](https://baike.baidu.com/item/表达式/7655228)的数据类型。
+在[C++](https://baike.baidu.com/item/C%2B%2B)11中，decltype操作符，用于查询表达式的数据类型。
 
 语法：decltype(expression) var;
 
