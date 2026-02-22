@@ -781,12 +781,6 @@ vfork()和fork()的另一个区别是：vfork()保证子进程先运行，在子
 
 ![image-20260122104659145](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260122104659145.png)
 
-```c
-
-```
-
-
-
 ### 进程共享
 
 父子进程相同的地方：（大前提是刚fork完）全局变量、data、text、堆、栈、环境变量、宿主目录位置、进程工作目录位置、信号处理方式。
@@ -795,7 +789,9 @@ vfork()和fork()的另一个区别是：vfork()保证子进程先运行，在子
 
 父子进程共享：文件描述符 mmap建立的映射区
 
-原则：读时共享、写时复制。![image-20260220201114291](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260220201114291.png)
+原则：读时共享、写时复制。
+
+![image-20260220201114291](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260220201114291.png)
 
 父子进程不共享全局变量。父进程改了全局变量，子进程看不到变化。
 
@@ -863,7 +859,9 @@ p代表的是PATH环境变量。
 
 exec函数调用成功不返回，只有失败才返回。所以通常直接在exec函数调用后直接调用perror()和exit()。
 
-只有execve是真正的系统调用。其他函数都是库函数，对execve函数进行了封装。![image-20260122121504823](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260122121504823.png)
+只有execve是真正的系统调用。其他函数都是库函数，对execve函数进行了封装。
+
+![image-20260122121504823](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260122121504823.png)
 
 练习：将进程信息打印到文件中。
 
@@ -886,6 +884,7 @@ system()函数的返回值比较麻烦。
 > 程序正常运行起来，中途被异常终止了，这叫执行程序失败。
 
 示例：
+
 ![image-20260221113027130](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260221113027130.png)
 
 ### 孤儿进程和僵尸进程
