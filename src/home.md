@@ -44,7 +44,7 @@ markmap:
 
 ### 操作系统
 - **系统基础**
-  - 小林coding
+  - [小林coding](https://xubenshan.github.io/blog/home.html)
 - **C++并发编程**
   - 现代C++并发编程教程 | 现代C++并发编程教程
   - Introduction · C++并发编程(中文版)
