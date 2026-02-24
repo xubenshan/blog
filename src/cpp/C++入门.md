@@ -270,7 +270,8 @@ int main(int argc,char *argv[],char *envp[])
 
 用gdb调试正在运行中的程序：
 
-`gdb 程序名 -p 进程编号` ![image-20260218221831958](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260218221831958.png)
+`gdb 程序名 -p 进程编号`
+![image-20260218221831958](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260218221831958.png)
 
 ## 基础语法
 
