@@ -87,55 +87,6 @@ int main() {
 
 
 
-**示例2：** 设计一个学生类，属性有姓名和学号，可以给姓名和学号赋值，可以显示学生的姓名和学号
-
-
-
-
-
-**示例2代码：**
-
-```C++
-//学生类
-class Student {
-public:
-	void setName(string name) {
-		m_name = name;
-	}
-	void setID(int id) {
-		m_id = id;
-	}
-
-	void showStudent() {
-		cout << "name:" << m_name << " ID:" << m_id << endl;
-	}
-public:
-	string m_name;
-	int m_id;
-};
-
-int main() {
-
-	Student stu;
-	stu.setName("德玛西亚");
-	stu.setID(250);
-	stu.showStudent();
-
-	system("pause");
-
-	return 0;
-}
-
-```
-
-
-
-
-
-
-
-
-
 **封装意义二：**
 
 类在设计时，可以把属性和行为放在不同的权限下，加以控制
@@ -214,39 +165,6 @@ int main() {
 
 * struct 默认权限为公共
 * class   默认权限为私有
-
-
-
-```C++
-class C1
-{
-	int  m_A; //默认是私有权限
-};
-
-struct C2
-{
-	int m_A;  //默认是公共权限
-};
-
-int main() {
-
-	C1 c1;
-	c1.m_A = 10; //错误，访问权限是私有
-
-	C2 c2;
-	c2.m_A = 10; //正确，访问权限是公共
-
-	system("pause");
-
-	return 0;
-}
-```
-
-
-
-
-
-
 
 
 
@@ -338,19 +256,39 @@ int main() {
 
 
 
+类中有成员变量和成员函数。变量是属性，函数是方法。
+
+下面介绍下常成员函数： 在函数体花括号前加一个const关键字
+
+这个函数要做的事情：
+
+* 这个函数不会修改类里面的非静态成员变量
+* 这个函数不会调用其它非const的成员函数（非const成员函数可能会修改成员变量的值）
+
+思考：为什么要加上const关键字，我写程序的时候自己注意点，不进行变量修改不就行了，加const多此一举。
+
+为了性能，我们用**引用传递**对象（避免拷贝）。为了安全，我们在引用前面加 const（防止函数内部乱改对象）。变成 const 对象后，它**只能调用**带有 const 后缀的常成员函数！所以，只要你的类里的方法是只读的，**必须、一定**要在后面加上 const，否则别人拿到你这个类的 const 引用时，什么方法都调用不了。
+
+```cpp
+// 假设 Person 类的 getAge() 后面【没有】写 const
+void printPersonInfo(const Person& p) {
+    // ⚠️ 灾难发生！
+    // p 现在是一个 const 对象，它意味着 p 里面的数据被锁死了，绝对不能变。
+    // 如果 getAge() 没有标记为 const，编译器会认为：“调用 getAge() 有可能修改 p 的数据！”
+    // 于是，编译器为了保护 p，直接禁止你调用 getAge()，编译报错！
+    cout << "年龄是: " << p.getAge() << endl; // ❌ 编译错误！
+}
+```
+
+凡事都有例外。有时候我们在一个整体上是“只读”的函数里，确实需要修改一两个无关紧要的变量（比如：我想记录一下 getAge() 这个函数被调用了多少次）。可以使用关键字：**mutable**修饰成员变量，这样在const成员函数中可以修改该变量。
+
+### 对象的初始化和清理
 
 
 
 
 
-
-### 4.2 对象的初始化和清理
-
-
-
-
-
-#### 4.2.1 构造函数和析构函数
+#### 构造函数和析构函数
 
 对象的**初始化和清理**也是两个非常重要的安全问题
 
@@ -381,8 +319,6 @@ c++利用了**构造函数**和**析构函数**解决上述问题，这两个函
 2. 函数名称与类名相同
 3. 构造函数可以有参数，因此可以发生重载
 4. 程序在调用对象时候会自动调用构造，无须手动调用,而且只会调用一次
-
-
 
 
 
@@ -3923,11 +3859,15 @@ C++标准库中的函数和类通常位于`std`命名空间中。
 
 程序运行时产生的数据都属于临时数据，程序一旦运行结束都会被释放
 
-通过**文件可以将数据持久化**
+通过**文件可以将数据持久化**。
+
+C++的io操作类关系图：（了解就行）
+
+![image-20260302091724047](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302091724047.png)
 
 C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 
-
+> 读写操作是针对当前程序而言的。读操作（in）是把文件中的数据写入内存；写操作（out）是把内存产生的数据写入到文件。
 
 文件类型分为两种：
 
@@ -3942,11 +3882,11 @@ C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 2. ifstream： 读操作
 3. fstream ： 读写操作
 
+   
 
+### 文本文件
 
-### 5.1文本文件
-
-#### 5.1.1写文件
+#### 写文件
 
 写文件步骤如下：
 
@@ -3958,19 +3898,28 @@ C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 
    ofstream ofs;
 
-3. 打开文件
+3. 打开文件 打开文件时默认会清空文件内容
 
-   ofs.open("文件路径",打开方式);
+   ofs.open("文件路径",打开方式); 文件路径可以用C风格字符串也可以用string。对于ofstream，不管用哪种模式打开文件，如果文件不存在，都会创建文件。
+
+   ![image-20260302092139568](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302092139568.png)
+
+   还需要用is_open函数判断打开文件是否成功。
+
+   ```cpp
+   if(!ofs.is_open())
+       cout << "打开文件失败" << endl;
+   ```
+
+   失败的主要原因：目录空间不存在、磁盘空间已满、没有权限。
 
 4. 写数据
 
-   ofs << "写入的数据";
+   ofs << "写入的数据"; (箭头方向是从数据到ofs文件对象，意思就是把数据写入到文件)
 
 5. 关闭文件
 
-   ofs.close();
-
-
+   ofs.close(); 实际上当 ofs 这个局部对象离开作用域（比如函数结束）被销毁时，**它的析构函数会自动帮你关闭文件**，但是显式的指定close函数是一个好习惯。
 
 文件打开方式：
 
@@ -3983,72 +3932,13 @@ C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 | ios::trunc  | 如果文件存在先删除，再创建 |
 | ios::binary | 二进制方式                 |
 
-**注意：** 文件打开方式可以配合使用，利用|操作符
+**注意：** 文件打开方式可以配合使用，利用|（按位或）操作符
 
-**例如：** 用二进制方式写文件 `ios::binary |  ios:: out`
+比如用二进制方式写文件 `ios::binary |  ios:: out`
 
-
-
-
-
-**示例：**
-
-```C++
-#include <fstream>
-
-void test01()
-{
-	ofstream ofs;
-	ofs.open("test.txt", ios::out);
-
-	ofs << "姓名：张三" << endl;
-	ofs << "性别：男" << endl;
-	ofs << "年龄：18" << endl;
-
-	ofs.close();
-}
-
-int main() {
-
-	test01();
-
-	system("pause");
-
-	return 0;
-}
-```
-
-总结：
-
-* 文件操作必须包含头文件 fstream
-* 读文件可以利用 ofstream  ，或者fstream类
-* 打开文件时候需要指定操作文件的路径，以及打开方式
-* 利用<<可以向文件中写数据
-* 操作完毕，要关闭文件
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### 5.1.2读文件
-
-
+#### 读文件
 
 读文件与写文件步骤相似，但是读取方式相对于比较多
-
-
 
 读文件步骤如下：
 
@@ -4066,215 +3956,469 @@ int main() {
 
 4. 读数据
 
-   四种方式读取
+   三种方式读取
 
 5. 关闭文件
 
    ifs.close();
 
-
-
 **示例：**
 
 ```C++
-#include <fstream>
-#include <string>
-void test01()
+#include <iostream>
+#include <fstream>  // ifstream类需要包含的头文件。
+#include <string>     // getline()函数需要包含的头文件。
+using  namespace std;
+
+int main()
 {
-	ifstream ifs;
-	ifs.open("test.txt", ios::in);
+	// 文件名一般用全路径，书写的方法如下：
+	//  1）"D:\data\txt\test.txt"       // 错误。
+	//  2）R"(D:\data\txt\test.txt)"   // 原始字面量，C++11标准。
+	//  3）"D:\\data\\txt\\test.txt"   // 转义字符。
+	//  4）"D:/tata/txt/test.txt"        // 把斜线反着写。
+	//  5）"/data/txt/test.txt"          //  Linux系统采用的方法。
+	string filename = R"(D:\data\txt\test.txt)";
+	//char    filename[] = R"(D:\data\txt\test.txt)";
 
-	if (!ifs.is_open())
+	// 创建文件输入流对象，打开文件，如果文件不存在，则打开文件失败。。
+	// ios::in     			缺省值。
+	//ifstream fin(filename);
+	//ifstream fin(filename, ios::in);
+	
+	ifstream fin;
+	fin.open(filename,ios::in);
+
+	// 判断打开文件是否成功。
+	// 失败的原因主要有：1）目录不存在；2）文件不存在；3）没有权限，Linux平台下很常见。
+	if (fin.is_open() == false)
 	{
-		cout << "文件打开失败" << endl;
-		return;
+		cout << "打开文件" << filename << "失败。\n";  return 0;
 	}
 
-	//第一种方式
-	//char buf[1024] = { 0 };
-	//while (ifs >> buf)
+	//// 第一种方法。
+	//string buffer;  // 用于存放从文件中读取的内容。
+	//// 文本文件一般以行的方式组织数据。
+	//while (getline(fin, buffer)) //全局的getline 一行行的读 把从fin读到的数据写入到buffer
 	//{
-	//	cout << buf << endl;
+	//	cout << buffer << endl;
 	//}
 
-	//第二种
-	//char buf[1024] = { 0 };
-	//while (ifs.getline(buf,sizeof(buf)))
+	//// 第二种方法。
+	//char buffer[16];   // 存放从文件中读取的内容。
+	//// 注意：如果采用ifstream.getline()，一定要保证缓冲区足够大。
+	//while (fin.getline(buffer, 15)) //第二个参数是一次能读多少字节
 	//{
-	//	cout << buf << endl;
+	//	cout << buffer << endl;
 	//}
 
-	//第三种
-	//string buf;
-	//while (getline(ifs, buf))
-	//{
-	//	cout << buf << endl;
-	//}
-
-	char c;
-	while ((c = ifs.get()) != EOF)
+	// 第三种方法。
+	string buffer;
+	while (fin >> buffer) //>>读取字符串遇到空格就会停止，可能导致读不全一行
 	{
-		cout << c;
+		cout << buffer << endl;
 	}
 
-	ifs.close();
+	fin.close();	   // 关闭文件，fin对象失效前会自动调用close()。
 
-
-}
-
-int main() {
-
-	test01();
-
-	system("pause");
-
-	return 0;
+	cout << "操作文件完成。\n";
 }
 ```
 
-总结：
+### 二进制文件
 
-- 读文件可以利用 ifstream  ，或者fstream类
-- 利用is_open函数可以判断文件是否打开成功
-- close 关闭文件
+>  二进制文件和文本文件的区别
+>
+> ![image-20260302094123121](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302094123121.png)
+>
+> ![image-20260302102533057](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302102533057.png)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### 5.2 二进制文件
-
-以二进制的方式对文件进行读写操作
+以二进制的方式对文件进行读写操作和前面介绍的文本文件有两点不同：
 
 打开方式要指定为 ==ios::binary==
 
+写文件要用成员函数write 读文件用成员函数read，第一个参数别忘了强制类型转换。
 
-
-#### 5.2.1 写文件
+#### 写文件
 
 二进制方式写文件主要利用流对象调用成员函数write
 
 函数原型 ：`ostream& write(const char * buffer,int len);`
 
-参数解释：字符指针buffer指向内存中一段存储空间。len是读写的字节数
-
-
+参数解释：字符指针buffer指向内存中一段存储空间。len是一次写到文件的字节数
 
 **示例：**
 
 ```C++
-#include <fstream>
-#include <string>
+#include <iostream>
+#include <fstream>  // ofstream类需要包含的头文件。
+using  namespace std;
 
-class Person
+int main()
 {
-public:
-	char m_Name[64];
-	int m_Age;
-};
+	// 文件名一般用全路径，书写的方法如下：
+	//  1）"D:\data\bin\test.dat"       // 错误。
+	//  2）R"(D:\data\bin\test.dat)"   // 原始字面量，C++11标准。
+	//  3）"D:\\data\\bin\\test.dat"   // 转义字符。
+	//  4）"D:/tata/bin/test.dat"        // 把斜线反着写。
+	//  5）"/data/bin/test.dat"          //  Linux系统采用的方法。
+	string filename = R"(D:\data\bin\test.dat)";
+	//char    filename[] = R"(D:\data\bin\test.dat)";
 
-//二进制文件  写文件
-void test01()
-{
-	//1、包含头文件
+	// 创建文件输出流对象，打开文件，如果文件不存在，则创建它。
+	// ios::out     		缺省值：会截断文件内容。
+	// ios::trunc  		截断文件内容。（truncate）
+	// ios::app   			不截断文件内容，只在文件未尾追加文件。（append）
+	// ios::binary   		以二进制方式打开文件。
+	//ofstream fout(filename, ios::binary);
+	//ofstream fout(filename, ios::out | ios::binary);
+	//ofstream fout(filename, ios::trunc | ios::binary);
+	//ofstream fout(filename, ios::app | ios::binary);
 
-	//2、创建输出流对象
-	ofstream ofs("person.txt", ios::out | ios::binary);
-	
-	//3、打开文件
-	//ofs.open("person.txt", ios::out | ios::binary);
+	ofstream fout;
+	fout.open(filename, ios::app | ios::binary);
 
-	Person p = {"张三"  , 18};
+	// 判断打开文件是否成功。
+	// 失败的原因主要有：1）目录不存在；2）磁盘空间已满；3）没有权限，Linux平台下很常见。
+	if (fout.is_open() == false)
+	{
+		cout << "打开文件" << filename << "失败。\n";  return 0;
+	}
 
-	//4、写文件
-	ofs.write((const char *)&p, sizeof(p));
+	// 向文件中写入数据。
+	struct st_girl {               // 超女结构体。
+		char name[31];         // 姓名。
+		int    no;                    // 编号。   
+		char memo[301];      // 备注。
+		double weight;         // 体重。
+	}girl;
+	girl = { "西施",3,"中国历史第一美女。" ,45.8 };
+	fout.write((const char *)& girl, sizeof(st_girl));   // 写入第一块数据。
+	girl = { "冰冰",8,"也是个大美女哦。",55.2};
+	fout.write((const char*)&girl, sizeof(st_girl));     // 写入第二块数据。
 
-	//5、关闭文件
-	ofs.close();
-}
+	fout.close();	   // 关闭文件，fout对象失效前会自动调用close()。
 
-int main() {
-
-	test01();
-
-	system("pause");
-
-	return 0;
+	cout << "操作文件完成。\n";
 }
 ```
 
-总结：
+把数据写入到一个二进制文件，应该如何查看二进制文件的内容呢
 
-* 文件输出流对象 可以通过write函数，以二进制方式写数据
+#### 读文件
 
-
-
-
-
-
-
-
-
-
-
-#### 5.2.2 读文件
-
-二进制方式读文件主要利用流对象调用成员函数read
+二进制方式读文件主要利用流对象调用成员函数read 怎么写的就怎么读出来。
 
 函数原型：`istream& read(char *buffer,int len);`
 
-参数解释：字符指针buffer指向内存中一段存储空间。len是读写的字节数
+参数解释：字符指针buffer指向内存中一段存储空间。len是一次读取的字节数。要读取二进制文件全部内容，需要用循环。
 
 示例：
 
-```C++
-#include <fstream>
-#include <string>
+```cpp
+#include <iostream>
+#include <fstream>  // ifstream类需要包含的头文件。
+using  namespace std;
 
-class Person
+int main()
 {
-public:
-	char m_Name[64];
-	int m_Age;
-};
+	// 文件名一般用全路径，书写的方法如下：
+	//  1）"D:\data\bin\test.dat"       // 错误。
+	//  2）R"(D:\data\bin\test.dat)"   // 原始字面量，C++11标准。
+	//  3）"D:\\data\\bin\\test.dat"   // 转义字符。
+	//  4）"D:/tata/bin/test.dat"        // 把斜线反着写。
+	//  5）"/data/bin/test.dat"          //  Linux系统采用的方法。
+	string filename = R"(D:\data\bin\test.dat)";
+	//char    filename[] = R"(D:\data\bin\test.dat)";
 
-void test01()
-{
-	ifstream ifs("person.txt", ios::in | ios::binary);
-	if (!ifs.is_open())
+	// 创建文件输入流对象，打开文件，如果文件不存在，则打开文件失败。。
+	// ios::in     			缺省值。
+	// ios::binary   		以二进制方式打开文件。
+	//ifstream fin(filename , ios::binary);
+	//ifstream fin(filename , ios::in | ios::binary);
+
+	ifstream fin;
+	fin.open(filename, ios::in | ios::binary);
+
+	// 判断打开文件是否成功。
+	// 失败的原因主要有：1）目录不存在；2）文件不存在；3）没有权限，Linux平台下很常见。
+	if (fin.is_open() == false)
 	{
-		cout << "文件打开失败" << endl;
+		cout << "打开文件" << filename << "失败。\n";  return 0;
 	}
 
-	Person p;
-	ifs.read((char *)&p, sizeof(p));
+	// 二进制文件以数据块（数据类型）的形式组织数据。
+	struct st_girl {               // 超女结构体。
+		char name[31];         // 姓名。
+		int    no;                    // 编号。   
+		char memo[301];      // 备注。
+		double weight;         // 体重。
+	}girl;
+	while (fin.read((char*)&girl, sizeof(girl)))
+	{
+		cout << "name=" << girl.name << "，no=" << girl.no << 
+			"，memo=" << girl.memo << "，weight=" << girl.weight << endl;
+	}
 
-	cout << "姓名： " << p.m_Name << " 年龄： " << p.m_Age << endl;
+	fin.close();	   // 关闭文件，fin对象失效前会自动调用close()。
+
+	cout << "操作文件完成。\n";
 }
+```
 
-int main() {
+*⚠️ 注意：在进行二进制读写结构体时，结构体内部不能有指针（如* *std::string**、**std::vector**），因为指针存到硬盘里没有任何意义，下次读出来时那块内存早就无效了。必须使用定长的数组或者进行序列化。*
 
-	test01();
+**操作文本文件和二进制文件的一些细节：**
 
-	system("pause");
+1）在windows平台下，文本文件的换行标志是"\r\n"。
 
-	return 0;
+2）在linux平台下，文本文件的换行标志是"\n"。
+
+3）在windows平台下，如果以文本方式打开文件，写入数据的时候，系统会将"\n"转换成"\r\n"；读取数据的时候，系统会将"\r\n"转换成"\n"。 如果以二进制方式打开文件，写和读都不会进行转换。
+
+> **为什么二进制模式必须加 ios::binary？**
+> 假如你正在用 C++ 写一张图片（图片底层全是 0 到 255 的数字）。如果不小心有一个像素点的颜色值刚好等于 10（这恰好是 \n 的 ASCII 码），如果你用**文本模式**写文件，C++ 会自作聪明地把它改成 13 10（\r\n）。
+> 结果就是：你的图片文件被莫名其妙地插入了额外的数据，**图片直接损坏，打不开了！**
+
+4）在Linux平台下，以文本或二进制方式打开文件，系统不会做任何转换。
+
+5）以文本方式读取文件的时候，遇到换行符停止，读入的内容中没有换行符；以二制方式读取文件的时候，遇到换行符不会停止，读入的内容中会包含换行符（换行符被视为数据）。
+
+6）在实际开发中，从兼容和语义考虑，一般：**a）以文本模式打开文本文件，用行的方法操作它；b）以二进制模式打开二进制文件，用数据块的方法操作它；c）以二进制模式打开文本文件和二进制文件，用数据块的方法操作它，这种情况表示不关心数据的内容。（例如复制文件和传输文件）**d）不要以文本模式打开二进制文件，也不要用行的方法操作二进制文件，可能会破坏二进制数据文件的格式，也没有必要。（因为二进制文件中的某字节的取值可能是换行符，但它的意义并不是换行，可能是整数n个字节中的某个字节）
+
+
+
+文件操作还有第三个类`fstream`，具备`ofstream`和`ifstream`类的功能。
+
+fstream类既可以读文本/二进制文件，也可以写文本/二进制文件。
+
+fstream类的缺省模式是`ios::in | ios::out`，如果文件不存在，则创建文件；打开文件时**不会清空文件原有的内容。**
+
+普遍的做法是：
+
+1）如果只想写入数据，用ofstream；如果只想读取数据，用ifstream；如果想写和读数据，用fstream，这种情况不多见。不同的类体现不同的语义。
+
+2）在Linux平台下，文件的写和读有严格的权限控制。（需要的权限越少越好）
+
+#### 文件位置指针
+
+![image-20260302114738666](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302114738666.png)
+
+来看这段代码，创建了一个输入流fin对象，将文件中的数据读到buffer里面，之所以每次循环读取的内容不一样，是因为文件流内部维护着一个叫文件位置指针的东西。用来记录上次读到的位置。
+
+对文件进行读/写操作时，文件的位置指针指向当前文件读/写的位置。
+
+很多资料用“文件读指针的位置”和“文件写指针的位置”，容易误导人。不管用哪个类操作文件，文件的位置指针只有一个。
+
+获取文件位置指针：ofstream类的成员函数是tellp()；ifstream类的成员函数是tellg()；fstream类两个都有，效果相同。
+
+移动文件位置指针：ofstream类的函数是seekp()；ifstream类的函数是seekg()；fstream类两个都有，效果相同。
+
+```cpp
+//seekg函数有两个重载版本
+//版本一
+std::istream & seekg(std::streampos _Pos);  
+fin.seekg(128);   // 把文件指针移到第128字节。
+fin.seekp(128);   // 把文件指针移到第128字节。
+fin.seekg(ios::beg) // 把文件指针移动文件的开始。
+fin.seekp(ios::end) // 把文件指针移动文件的结尾。
+
+//版本二
+std::istream & seekg(std::streamoff _Off,std::ios::seekdir _Way);
+在ios中定义的枚举类型：
+enum seek_dir {beg, cur, end};  // beg-文件的起始位置；cur-文件的当前位置；end-文件的结尾位置。
+fin.seekg(30, ios::beg);    // 从文件开始的位置往后移30字节。
+fin.seekg(-5, ios::cur);     // 从当前位置往前移5字节。
+fin.seekg( 8, ios::cur);     // 从当前位置往后移8字节。
+fin.seekg(-10, ios::end);   // 从文件结尾的位置往前移10字节。
+```
+
+注意往文件中写数据时，文件位置指针在开头，写入数据后应该是下面图片的最后一种情况。
+
+![image-20260302104956464](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302104956464.png)
+
+随机存取是指直接移动文件的位置指针，在指定位置读取/写入数据。
+
+```cpp
+#include <iostream>
+#include <fstream>  // fstream类需要包含的头文件。
+using  namespace std;
+
+int main()
+{
+	string filename = R"(D:\data\txt\test.txt)";
+	
+	fstream fs;
+	fs.open(filename, ios::in | ios::out);
+
+	if (!fs.is_open())
+	{
+		cout << "打开文件" << filename << "失败。\n";  return 0;
+	}
+	
+	fs.seekg(26);    // 把文件位置指针移动到第26字节处。应该在第二行漂。
+
+	fs << "我是一只傻傻的小菜鸟。\n"; 
+
+	/*string buffer; 
+	while (fs >> buffer)
+	{
+		cout << buffer << endl;
+	}*/
+
+	fs.close();	   // 关闭文件，fs对象失效前会自动调用close()。
+
+	cout << "操作文件完成。\n";
+
+```
+
+![image-20260302110738119](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302110738119.png)
+
+> 注意在写入操作时，数据会覆盖掉行末尾的\r\n两个字符。所以程序的运行结果和我们预想的不太一样。
+
+如果文件不存在，各种模式都会创建文件。
+
+ios::out       1）会截断文件；2）可以用seekp()移动文件指针。
+
+ios:trunc      1）会截断文件；2）可以用seekp()移动文件指针。
+
+ios::app      1）不会截断文件；2）文件指针始终在文件未尾，不能用seekp()移动文件指针。
+
+ios::ate       打开文件时文件指针指向文件末尾，但是，可以在文件中的任何地方写数据。
+
+ios::in        打开文件进行读操作，即读取文件中的数据。
+
+ios::binary    打开文件为二进制文件，否则为文本文件。
+
+注：ate是at end的缩写，trunc是truncate（截断）的缩写，app是append（追加）的缩写。
+
+#### 文件缓冲区
+
+![image-20260302111807645](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302111807645.png)
+
+程序向硬盘写入数据，不是直接写进硬盘，而是写进一个缓冲区，等缓冲区的数据满了再写入硬盘中。可以减少硬盘的写操作。
+
+程序读取硬盘中的数据，不是直接读，系统先把更多的数据从硬盘中读出来，放到一个缓冲区里面，程序再从缓冲区读取数据。可以减少硬盘的读操作。
+
+缓冲区可以减少磁盘IO的次数，提高读写效率。
+
+在C++中，每打开一个文件，系统就会为它分配缓冲区。**不同的流，缓冲区是独立的**。
+
+程序员不用关心输入缓冲区，只关心**输出缓冲区**就行了。
+
+在缺省模式下，输出缓冲区中的数据满了才把数据写入磁盘，但是，这种模式不一定能满足业务的需求。
+
+**输出缓冲区的操作：**
+
+1）flush()成员函数
+
+刷新缓冲区，把缓冲区中的内容写入磁盘文件。
+
+2）endl
+
+换行，然后刷新缓冲区。
+
+3）unitbuf
+
+`fout << unitbuf;`
+
+设置fout输出流，在每次操作之后自动刷新缓冲区。
+
+4）nounitbuf
+
+`fout << nounitbuf;`
+
+设置fout输出流，让fout回到缺省的缓冲方式。
+
+```cpp
+#include <iostream>
+#include <fstream>          // ofstream类需要包含的头文件。
+#include <unistd.h>
+using  namespace std;
+
+int main()
+{
+  ofstream fout("/oracle/tmp/bbb.txt");   // 打开文件。
+  fout << unitbuf;
+
+  for (int ii = 0; ii < 1000; ii++)  // 循环1000次。
+  {
+    fout << "ii=" << ii << "，我是一只傻傻傻傻傻傻傻傻傻傻傻傻傻傻的鸟。\n";
+    //fout.flush();      // 刷新缓冲区。
+    usleep(100000);    // 睡眠十分之一秒。
+  }
+
+  fout.close();  // 关闭文件。
 }
 ```
 
 
 
-- 文件输入流对象 可以通过read函数，以二进制方式读数据
+每创建一个流对象，内部会有三个标志位，用于表示流的状态。
+
+**流状态有三个：eofbit、badbit和failbit，取值：1-设置；或0-清除。**
+
+**当三个流状成都为0时，表示一切顺利，good()成员函数返回true。**
+
+1）eofbit
+
+当输入流操作到达文件未尾时，将设置eofbit。
+
+eof()成员函数检查流是否设置了eofbit。
+
+2）badbit
+
+无法诊断的失败破坏流时，将设置badbit。（例如：对输入流进行写入；磁盘没有剩余空间）。
+
+bad()成员函数检查流是否设置了badbit。
+
+3）failbit
+
+当输入流操作未能读取预期的字符时，将设置failbit（非致命错误，可挽回，一般是软件错误，例如：想读取一个整数，但内容是一个字符串；文件到了未尾）I/O失败也可能设置failbit。
+
+fail()成员函数检查流是否设置了failbit。
+
+4）clear()成员函数清理流状态。
+
+5）setstate()成员函数重置流状态。
+
+```cpp
+#include <iostream>
+#include <fstream>  // ifstream类需要包含的头文件。
+#include <string>     // getline()函数需要包含的头文件。
+using  namespace std;
+
+int main()
+{
+	ifstream fin(R"(D:\data\txt\test.txt)", ios::in);
+
+	if (!fin.is_open()) {
+		cout << "打开文件" << R"(D:\data\txt\test.txt)" << "失败。\n";  return 0;
+	}
+
+	string buffer;
+	/*while (fin >> buffer) {
+		cout << buffer << endl;
+	}*/
+	while (true) {
+		fin >> buffer;
+		cout << "eof()=" << fin.eof() << ",good() = " << fin.good() << ", bad() = " << fin.bad() << ", fail() = " << fin.fail() << endl;
+		if (fin.eof() == true) break; //eof函数返回1代表文件位置指针到了文件末尾。
+		
+		cout << buffer << endl;
+	}
+
+	fin.close();	   // 关闭文件，fin对象失效前会自动调用close()。
+}
+```
+
+![image-20260302114116369](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302114116369.png)
+
+
+
+
+
+
 
 
 

@@ -5,6 +5,10 @@ order: 3
 ---
 
 > 本章主要介绍的是模板（类模板、函数模板）和STL标准模板库。
+>
+> 标准模板库和标准库有什么区别？
+>
+> 标准库是C++自带的代码库，包含多线程并发、智能指针、STL等等。所以STL实际上是标准库的子集。
 
 # 模板及STL技术
 
@@ -21,18 +25,14 @@ order: 3
 * 模板不可以直接使用，它只是一个框架
 * 模板的通用并不是万能的
 
-
-
-### 1.2 函数模板
-
-
-
 * C++另一种编程思想称为 ==泛型编程== ，主要利用的技术就是模板
 
 
 * C++提供两种模板机制:**函数模板**和**类模板**（还有另一个称呼：模板函数和模板类）
 
+### 1.2 函数模板
 
+函数模板不是函数，只有实例化函数模板，编译器才能生成实际的函数定义。不过在很多时候，它看起来就像普通函数一样。
 
 #### 1.2.1 函数模板语法
 
@@ -53,11 +53,11 @@ template<typename T>
 
 template  ---  声明创建模板
 
-typename  --- 表示其后面的符号是一种数据类型，可以用class代替
+typename  --- 表示其后面的符号是一种数据类型，可以用class代替，不能用struct
 
-T    ---   通用的数据类型，名称可以替换，通常为大写字母
+T    ---   类型形参，名称可以替换，通常为大写字母
 
-
+模板形参有类型形参和非类型形参
 
 **示例：**
 
@@ -115,15 +115,88 @@ int main() {
 }
 ```
 
-总结：
+```cpp
+#include <iostream>
 
-* 函数模板利用关键字 template
-* 使用函数模板有两种方式：自动类型推导、显示指定类型
-* 模板的目的是为了提高复用性，将类型参数化
+template<typename T>
+T max(T a, T b) {
+    return a > b ? a : b;
+}
+
+struct Test{
+    int v_{};
+    Test() = default;
+    Test(int v) :v_(v) {}
+    bool operator>(const Test& t) const{
+        return this->v_ > t.v_;
+    }
+};
+
+int main(){
+    int a{ 1 };
+    int b{ 2 };
+    std::cout << "max(a, b) : " << ::max(a, b) << '\n';
+
+    Test t1{ 10 };
+    Test t2{ 20 };
+    std::cout << "max(t1, t2) : " << ::max(t1, t2).v_ << '\n';
+
+}
+```
+
+T到底是什么类型，可以让编译器去自己推导，也可以显式指定。用``<>``指定。
+
+有默认实参的类型形参：就如同函数形参可以有默认值一样，模板形参也可以有默认值。
+
+```cpp
+template<typename T = int> //默认类型形参是int
+void f();
+
+f();            // 默认为 f<int>
+f<double>();    // 显式指明为 f<double>
+```
+
+再来看一个复杂的例子：
+
+```cpp
+using namespace std::string_literals;//可以使得在字符串后面加上s，让编译器识别为string对象，而不是C风格的字符串。
+
+template<typename T1,typename T2,typename RT = 
+    decltype(true ? T1{} : T2{}) > //第三个类型形参指明了默认值 decltype得到T1和T2的公共类型
+
+RT max(const T1& a, const T2& b) { // 
+    return a > b ? a : b;
+}
+
+int main(){
+    auto ret = ::max("1", "2"s); const char[] string const char[]可以隐式转化成string 所以 RT 是 std::string
+    std::cout << ret << '\n';
+}
+
+
+//用auto进行简化
+template<typename T,typename T2>
+auto max(const T& a, const T2& b) -> decltype(true ? a : b){ 
+    return a > b ? a : b;
+} // C++11 后置返回类型 前面的auto只是充当返回值的占位符
+```
+
+非类型形参的示例：目前，你简单认为需要参数是“常量”即可。
+
+```cpp
+template<std::size_t N> //std::size_t是C++标准库用来表示无符号整数类型 size_t 的真实大小不是固定的，而是跟着你的操作系统位数走的：
+//它定义在 <cstddef> 头文件中。不过因为太常用了，几乎所有的 STL 头文件（如 <iostream>, <vector>, <string>）都在底层包含了它，所以你通常不需要专门去 #include <cstddef> 就能直接用。
+//size_t实际上是unsigned int或unsigned long long的别名
+void f() { std::cout << N << '\n'; }
+
+f<100>();
+```
 
 
 
-#### 1.2.2 函数模板注意事项
+
+
+
 
 注意事项：
 
@@ -335,21 +408,7 @@ int main() {
 }
 ```
 
-总结：建议使用显示指定类型的方式，调用函数模板，因为可以自己确定通用类型T
-
-
-
-
-
-
-
-
-
-
-
-#### 1.2.5 普通函数与函数模板的调用规则
-
-
+#### 普通函数与函数模板的调用规则
 
 调用规则如下：
 
@@ -357,10 +416,6 @@ int main() {
 2. 可以通过空模板参数列表来强制调用函数模板
 3. 函数模板也可以发生重载
 4. 如果函数模板可以产生更好的匹配,优先调用函数模板
-
-
-
-
 
 **示例：**
 
@@ -1559,11 +1614,7 @@ public:
 
 
 
-## 2 STL初识
-
-### 2.1 STL的诞生
-
-
+## STL初识
 
 * 长久以来，软件界一直希望建立一种可重复利用的东西
 
@@ -1574,9 +1625,7 @@ public:
 * 为了建立数据结构和算法的一套标准,诞生了**STL**
 
 
-
-
-### 2.2 STL基本概念
+### STL基本概念
 
 
 
@@ -1585,11 +1634,11 @@ public:
 * **容器**和**算法**之间通过**迭代器**进行无缝连接。
 * STL 几乎所有的代码都采用了模板类或者模板函数
 
+![image-20260302153248829](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260302153248829.png)
 
+STL实现了数据结构和算法的分离。
 
-
-
-### 2.3 STL六大组件
+### STL六大组件
 
 STL大体分为六大组件，分别是:**容器、算法、迭代器、仿函数、适配器（配接器）、空间配置器**
 
@@ -1606,7 +1655,7 @@ STL大体分为六大组件，分别是:**容器、算法、迭代器、仿函�
 
 
 
-### 2.4  STL中容器、算法、迭代器
+### STL中容器、算法、迭代器
 
 
 
@@ -1663,7 +1712,7 @@ STL**容器**就是将运用**最广泛的一些数据结构**实现出来
 
 
 
-### 2.5 容器算法迭代器初识
+### 容器算法迭代器初识
 
 
 
