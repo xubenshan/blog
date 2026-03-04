@@ -3936,6 +3936,58 @@ C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 
 比如用二进制方式写文件 `ios::binary |  ios:: out`
 
+```cpp
+#include <iostream>
+#include <fstream>  // ofstream类需要包含的头文件。
+using  namespace std;
+
+int main()
+{
+	// 文件名一般用全路径，书写的方法如下：
+	//  1）"D:\data\txt\test.txt"       // 错误。
+	//  2）R"(D:\data\txt\test.txt)"   // 原始字面量，C++11标准。
+	//  3）"D:\\data\\txt\\test.txt"   // 转义字符。
+	//  4）"D:/tata/txt/test.txt"        // 把斜线反着写。
+	//  5）"/data/txt/test.txt"          //  Linux系统采用的方法。
+	string filename = R"(D:\data\txt\test.txt)";
+	//char    filename[] = R"(D:\data\txt\test.txt)";
+
+	// 创建文件输出流对象，打开文件，如果文件不存在，则创建它。
+	// ios::out     		缺省值：会截断文件内容。
+	// ios::trunc  		截断文件内容。（truncate）
+	// ios::app   			不截断文件内容，只在文件未尾追加文件。（append）
+	//ofstream fout(filename);
+	//ofstream fout(filename, ios::out);
+	//ofstream fout(filename, ios::trunc);
+	//ofstream fout(filename, ios::app);
+	
+	ofstream fout;
+	fout.open(filename,ios::app);
+
+	// 判断打开文件是否成功。
+	// 失败的原因主要有：1）目录不存在；2）磁盘空间已满；3）没有权限，Linux平台下很常见。
+	if (fout.is_open() == false)
+	{
+		cout << "打开文件" << filename << "失败。\n";  return 0;
+	}
+
+	// 向文件中写入数据。
+	fout << "西施|19|极漂亮\n";
+	fout << "冰冰|22|漂亮\n";
+	fout << "幂幂|25|一般\n";
+
+	fout.close();	   // 关闭文件，fout对象失效前会自动调用close()。
+
+	cout << "操作文件完成。\n";
+}
+```
+
+
+
+
+
+
+
 #### 读文件
 
 读文件与写文件步骤相似，但是读取方式相对于比较多

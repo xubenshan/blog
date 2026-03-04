@@ -2,11 +2,10 @@
 
 > 参考：
 >
-> [黑马程序员-Linux系统编程](https://www.bilibili.com/video/BV1KE411q7ee?vd_source=5940e85c0b18a907a0fdea51914b4f65&spm_id_from=333.788.videopod.episodes&p=58)
+> * [黑马程序员-Linux系统编程](https://www.bilibili.com/video/BV1KE411q7ee?vd_source=5940e85c0b18a907a0fdea51914b4f65&spm_id_from=333.788.videopod.episodes&p=58)
+> * 码农论坛Linux环境高级编程
 >
-> 《unix环境高级编程》
-
-
+> * 《unix环境高级编程》
 
 
 
@@ -1115,22 +1114,175 @@ fd[0]读端 fd[1]写端
 
 
 
-FIFO（命名管道）通过FIFO，不相关的进程也能进行数据交换。
+FIFO（命名管道）通过FIFO，不相关的进程也能进行数据交换。利用内核空间创建缓冲区，通过缓冲区进行通信。
 
 创建方式：
 
 * `mkfifo 管道名`
-* `int mkfifo(const char *pathname, mode_t mode);` 成功返回0，失败返回-1。 需要添加头文件：`<sys/stat.h>`
+* `int mkfifo(const char *pathname, mode_t mode);` 成功返回0，失败返回-1。 需要添加头文件：`<sys/stat.h>` 参数pathname是管道名 mode是八进制权限（比如0644）这个权限不是真正的权限，需要和umask掩码与一下。
+
+![image-20260303090934811](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303090934811.png)
 
 FIFO本质就是一个文件，两个进程一个进行写，一个进行读，从而实现通信。
 
+![image-20260303091724816](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303091724816.png)
+
+先看左侧的open函数，第一个参数是文件路径；第二个参数就是打开方式。返回文件描述符。
+
+再看左图的read函数，第一个参数是要读取的文件描述符，第二个参数buf是用来存放读出来数据的容器，第三个参数代表buf的容量，能从文件fd中读取的最大字节数。也就是4096个字节。返回值len是实际读到的字节数。
+
+再看write函数，第一个参数是写到哪个文件，STDOUT_FILENO代表标准输出设备也就是屏幕。第二个参数是把什么写到屏幕上去，第三个参数是读了多少字节，我就写多少字节。所以用的len。
+
+再看右侧的write函数，把buf里面的数据写到fd这 个文件中， strlen() 来计算**这个字符串实际的长度**（遇到 \0 停止计算）。注意sprintf会在字符串后面添加\0。
 
 
-存储映射
 
 
 
-共享内存：
+文件实现进程间通信
+
+![image-20260303095753809](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303095753809.png)
+
+![image-20260303100417227](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303100417227.png)
+
+父子进程共享文件描述符，那么fd1和fd2是同一个文件描述符吗？
+
+fd1和fd2不是同一个文件描述符。父子进程只共享在 `fork()` 之前`open`的文件描述符。上面的程序open函数是在fork之后进行的，操作系统内核会为这两个 `open` 操作分别创建独立的文件表项。
+
+![image-20260303102941802](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303102941802.png)
+
+![image-20260303102929413](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303102929413.png)
+
+思考题程序：
+
+![image-20260303100119627](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303100119627.png)
+
+
+
+
+
+
+
+
+
+存储映射I/O
+
+存储映射I/O(Memory-mapped I/O)使一个磁盘文件与内存空间中的一个缓冲区相映射。于是当从缓冲区中取数据，就相当于读文件中的相应字节。于此类似，将数据存入缓冲区，则相应的字节就自动写入文件。这样，就可在不适用read和write函数的情况下，使用地址（指针）完成I/O操作。
+
+使用这种方法，首先应通知内核，将一个指定文件映射到存储区域中。这个映射工作可以通过mmap函数来实现。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303102306850.png" alt="image-20260303102306850" style="zoom:50%;" />
+
+
+
+mmap函数原型：头文件`sys/mman.h`
+
+`void* mmap(void* addr, size_t length,int prot, int flags, int fd, off_t offset)`
+
+参数说明：
+
+* addr 指定映射区的首地址，通常是NULL，表示让系统自动分配
+* length 指定共享内存映射区的大小，要小于等于文件的实际大小。length不能是0
+* prot 共享内存区的读写属性 PROT_READ PROT_WRITE 
+* flags 标注共享内存区的共享属性 MAP_SHARED MAP_PRIVATE(不能被同步到磁盘)
+* fd 用于创建共享内存区的那个文件的文件描述符
+* offset 偏移位置 默认0 表示映射文件全部  需要是4k的整数倍
+
+* 返回值：因为不知道共享内存里面要存放什么数据， 所以用泛型指针。成功返回映射区的首地址；失败返回一个宏MAP_FAILED
+
+munmap函数 释放内存映射区
+
+`int munmap(void* addr, size_t length)` 成功返回0 失败返回 -1
+
+![image-20260303105100306](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303105100306.png)
+
+`lseek(fd, 10, SEEK_END)`：将文件的读写指针向后移动 10 个字节 第二个参数：偏移量，想让读写指针相当于基准点（第三个参数）移动多少个字节
+
+第三个参数：基准点 执行成功后，lseek会**返回当前指针距离文件开头的字节数**。
+
+`write(fd, "\0", 1)`：在空洞的末尾写入一个空字符。此时文件大小变成了 11 字节。
+
+`ftruncate(fd, 11)`：直接将文件大小截断/扩展为 11 个字节。
+
+
+
+**mmap注意事项：**
+
+创建映射区，mmap需要read权限 当访问权限指定为共享时，mmap的权限要小于等于创建映射区的那个文件的权限。
+
+文件描述符fd在mmap创建映射区完成后即可关闭。
+
+offset必须是4096的整数倍，（因为MMU映射的最小单位就是4k）
+
+1.创建映射区的过程中，隐含着一次对映射文件的读操作。
+
+2.当MAP_SHARED时，要求：映射区的权限应<=文件打开的权限(出于对映射区的保护)。而MAP_PRIVATE则无所谓，因为mmap中的权限是对内存的限制。
+
+3.映射区的释放与文件关闭无关。只要映射建立成功，文件可以立即关闭。
+
+4.特别注意，当映射文件大小为0时，不能创建映射区。所以：用于映射的文件必须要有实际大小！！mmap使用时常常会出现总线错误，通常是由于共享文件存储空间大小引起的。如，400字节大小的文件，在建立映射区时ofset 4096字节，则会报出总线错。
+
+5.munmap传入的地址一定是mmap的返回地址。坚决杜绝指针++操作。
+
+6.如果文件偏移量必须为4K的整数倍
+
+7.mmap创建映射区出错概率非常高，一定要检查返回值，确保映射区建立成功再进行后续操作。
+
+
+
+**mmap父子进程通信**
+
+先mmap再fork。mmap访问权限设置为共享
+
+![image-20260303113729171](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303113729171.png)
+
+![image-20260303113747035](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303113747035.png)
+
+
+
+**mmap无血缘关系进程间通信**
+
+实质上mmap是内核借助文件帮我们创建了一个映射区，多个进程之间利用该映射区完成数据传递。由于内核空间多进程共享，因此无血缘关系的进程间也可以使用mmap来完成通信。只要设置相应的标志位参数flags即可。若想实现共享，当然应该使用MAP_SHARED了。
+
+逻辑：两个进程打开同一个文件，创建映射区。flags为MAP_SHARED 一个进程写 一个进程读。
+
+![image-20260303115914670](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303115914670.png)
+
+![image-20260303115902510](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303115902510.png)
+
+读端：
+
+![image-20260303120100495](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303120100495.png)
+
+ 
+
+注意：mmap：数据可以反复读取
+
+​	     fifo：数据只能读一次，不能重复读 因为fifo是管道，管道是消息队列机制，数据读走就没了
+
+而mmap是文件缓冲区的机制，数据可以反复读。
+
+
+
+
+
+**匿名映射区**
+
+没有血缘关系的进程不能用匿名映射区实现通信。
+
+![image-20260303121206986](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303121206986.png)
+
+> 当你 `open` 后立马 `unlink`，`unlink` 的作用是把这个文件名从操作系统的目录树里抹掉（解除硬链接）,这个文件在当前目录里就看不到了（别人无法再打开它），但因为你的进程还拿着 `fd`（拿着钥匙），操作系统会在底层悄悄为你保留这个文件的实体。等你用完，调用 `close` 退出时，操作系统发现这文件既没名字，又没人用了，就会干脆利落地把它从磁盘上连根拔起，做到真正的“阅后即焚”，不留痕迹。
+
+通过标志位参数flags指定匿名映射区，用宏MAP_ANONYMOUS 另外参数fd设置为-1。
+
+![image-20260303121745878](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303121745878.png)
+
+![image-20260303123221954](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303123221954.png)
+
+
+
+**共享内存**：
 
 多线程共享进程的地址空间，如果多个线程需要访问同一块内存，用全局变量就可以了。
 
@@ -1621,6 +1773,32 @@ public:
 
 信号（signal）是软件中断，是进程之间相互传递消息的一种方法，用于通知进程发生了事件，但是，不能给进程传递任何数据。
 
+给B发送信号，B收到信号之前执行自己的代码，收到信号后，不管执行到程序的什么位置，都要暂停运行，去处理信号，处理完毕再继续执行。与硬件中断类似——异步模式。但信号是软件层面上实现的中断.所有信号的产生和处理都是由【内核】完成的。
+
+产生信号的几种方式：
+
+1.按键产生，如：Ctrl+c、Ctrl+z、Ctrl+\
+
+2.系统调用产生，如：kill、raise、abort
+
+3.软件条件产生，如：定时器alarm
+
+4.硬件异常产生，如：非法访问内存(段错误)、除0(浮点数例外)、内存对齐出错(总线错误)
+
+5.命令产生，如：kill命令
+
+> 两个概念：递达：递送并且到达进程
+>
+> 未决：还没有到达进程 主要是由于阻塞导致该状态
+
+Linux内核的进程控制块PCB是一个结构体，task_struct,除了包含进程id，状态，工作目录，用户id，组id，文件描述符表，还包含了信号相关的信息，主要指阻塞信号集和未决信号集。
+
+阻塞信号集(信号屏蔽字)： 本质就是位图，用来记录信号的屏蔽状态。将某些信号加入集合，对他们设置屏蔽，当屏蔽x信号后，收到该信号时该信号的处理将推后。
+
+未决信号集:1.信号产生，未决信号集中描述该信号的位立刻翻转为1，表信号处于未决状态。当信号被处理对应位翻转回为0。这一时刻往往非常短暂。2.信号产生后由于某些原因(主要是阻塞)不能抵达进程。这类信号的集合称之为未决信号集。在屏蔽解除前，信号一直处于未决状态。
+
+信号是由内核产生的，然后发送给进程，到达进程后就被内核处理掉。从产生到到达进程这个阶段叫做未决。从cpu级别来看信号都会经历未决状态，信号被阻塞了就会一直处在未决状态。
+
 ### 发送信号
 
 可以采用`kill`或`killall`命令向进程发送信号。
@@ -1641,13 +1819,77 @@ public:
 
 2）pid=0 将信号传给和当前进程相同进程组的所有进程，常用于父进程给子进程发送信号，注意，发送信号者进程也会收到自己发出的信号。
 
+进程组：每个进程都属于一个进程组，进程组是一个或多个进程集合，他们相互关联，共同完成一个实体任务，每个进程组都有一个进程组长，默认进程组ID与进程组长ID相同。父进程和子进程在同一个进程组。
+
 3）pid=-1 将信号广播传送给系统内所有的进程，例如系统关机时，会向所有的登录窗口广播关机信息。
 
 * `sig`：准备发送的信号代码，假如其值为0则没有任何信号送出，但是系统会执行错误检查，通常会利用`sig`值为零来检验某个进程是否仍在运行。
 
 返回值说明： 成功执行时，返回0；失败返回-1，errno被设置。
 
+**alarm函数**
+
+设置定时器(闹钟)。在指定seconds后，内核会给当前进程发送14号SIGALRM信号。进程收到该信号，默认动作终止。采用自然计时法。
+
+**每个进程有且只有唯一一个定时器**。
+
+`unsigned int alarm(unsigned int seconds);` 返回0或剩余的秒数，无失败。
+
+常用：alarm(0)取消定时器，返回旧闹钟余下秒数。
+
+例：alarm(5)→3sec→alarm(4)→5sec→alarm(5)→alarm(0)
+
+> 解释下上面的流程：先定时器5秒 过了三秒之后又重新设置定时器4s，第一次的alarm返回2秒，过了五秒，重新设置定时器5s，第二次的alarm返回0秒。立马取消定时器，第三次的alarm返回5s。
+
+练习：编写程序，测试你使用的计算机1秒钟能数多少个数。
+
+使用time命令可以查看程序执行的时间。程序运行的瓶颈在于IO，优化程序，首选优化IO。
+
+实际执行时间 = 用户时间 + 等待时间（比如等设备 等内存） + 系统时间
+
+![image-20260303173606844](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303173606844.png)
+
+**setitimer函数** 
+
+设置定时器(闹钟)。可代替alarm函数。精度微秒us，可以实现周期定时。
+
+`int setitimer(int which, const struct itimerval *new_value, struct itimerval *old_value);`
+
+成功：0；失败：-1，
+
+设置errno参数：
+
+which：指定定时方式
+
+①自然定时：ITIMER_REAL→14）SIGLARM计算自然时间
+
+②虚拟空间计时(用户空间)：ITIMER_VIRTUAL→26）SIGVTALRM 只计算进程占用cpu的时间
+
+③运行时计时(用户+内核)：ITIMER_PROF→27）SIGPROF 计算占用cpu及执行系统调用的时间
+
+`new_value` 定时秒数 
+
+![image-20260303174439832](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303174439832.png)
+
+`old_value` 传出参数 上次定时剩余时间
+
+练习:使用setitimer函数实现alarm函数，重复计算机1秒数数程序。
+
+拓展练习，结合man page编写程序，测试it_interval、it_value这两个参数的作用。
+
+提示：**it_interval：用来设定两次定时任务之间间隔的时间。it_value：定时的时长** 两个参数都设置为0，即清0操作。
+
+![image-20260303180809649](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303180809649.png)
+
+![image-20260303182408496](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303182408496.png)
+
+
+
+
+
 ### 信号类型
+
+**信号四要素：编号、名称、信号对应的事件、默认处理动作**
 
 | 信号名      | 信号值 | 默认处理动作 | 发出信号的原因                                         |
 | ----------- | ------ | ------------ | ------------------------------------------------------ |
@@ -1664,7 +1906,7 @@ public:
 | **SIGTERM** | **15** | **A**        | **采用“kill  进程编号”或“killall 程序名”通知程序。**   |
 | SIGUSR1     | 10     | A            | 用户自定义信号1                                        |
 | SIGUSR2     | 12     | A            | 用户自定义信号2                                        |
-| **SIGCHLD** | **17** | **B**        | **子进程结束信号**                                     |
+| **SIGCHLD** | **17** | **B**        | 子进程状态发生变化，父进程会收到这个信号               |
 | SIGCONT     | 18     |              | 进程继续（曾被停止的进程）                             |
 | SIGSTOP     | 19     | DEF          | 终止进程                                               |
 | SIGTSTP     | 20     | D            | 控制终端（tty）上按下停止键                            |
@@ -1686,19 +1928,21 @@ E 信号不能被捕获。
 
 F 信号不能被忽略。
 
-### 信号的处理
+### 信号处理
 
 进程对信号的处理方法有三种：
 
 1）对该信号的处理采用系统的默认操作，大部分的信号的默认操作是终止进程。
 
-2）设置信号的处理函数，收到信号后，由该函数来处理。
+2）设置信号的处理函数（捕捉函数），收到信号后，由该函数来处理。
 
 3）忽略某个信号，对该信号不做任何处理，就像未发生过一样。
 
-`signal()`函数可以设置程序对信号的处理方式。
+`signal()`函数可以设置程序对信号的处理方式。（signal用来注册信号捕捉函数）
 
 函数声明：
+
+`typedef void(*sighandler_t)(int)` 定义了一个类型叫sighandler_t  是一个函数指针，指向返回值为void 参数为int的函数。
 
 `sighandler_t signal(int signum, sighandler_t handler);`
 
@@ -1757,9 +2001,245 @@ int main(int argc,char *argv[])
 
 如果向服务程序发送0的信号，可以检测程序是否存活。
 
+sigaction函数（也可以用来注册信号捕捉函数）
+
+`int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);`
+
+成功：0；失败：-1，设置errno
+
+参数：
+
+* act 新的处理方式
+* oldact 旧的处理方式
+
+```cpp
+// struct sigaction结构体
+
+struct sigaction {
+void (*sa_handler)(int); //函数指针 指向信号处理函数
+void (*sa_sigaction)(int, siginfo_t *, void *);//很少用
+sigset_t sa_mask; //屏蔽信号集 只在信号处理函数被调用期间生效
+int sa_flags;// 通常设置为0 代表本信号使用默认属性 默认属性一般都是默认屏蔽。
+void (*sa_restorer)(void);//弃用
+};
+```
+
+![image-20260304091603875](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304091603875.png)
+
+**信号捕捉特性**：
+
+* 捕捉函数执行期间，信号屏蔽字由sa_mask说了算，而不是mask。函数执行完毕，恢复为mask。（捕捉函数指的是sig_catch函数） 上面的程序中sa_mask都设置为了0，flag设置为0，代表本信号被阻塞，因此其实sa_mask中的SIGINT被设置成了1。
+* XXX信号捕捉函数执行期间，XXX信号自动被屏蔽。（flag需要设置为0）
+* 阻塞的常规信号不支持排队，产生多次只记录一次。（后32个实时信号支持排队）
+
+**内核实现信号捕捉过程：**
+
+  当信号捕捉函数执行完成后，还需要返回给调用者。调用者就是kernal内核，因此还需要进入内核态，通过系统调用`sys_sigreturn`进入内核。
+
+![image-20260304094709077](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304094709077.png)
+
+第二步：内核会去检查当前进程的 PCB中的**未决信号集（pending）和阻塞信号集（block）**。如果发现有**未被阻塞**的信号正等着处理，就会进入下一步。
+
 ### 信号集操作函数
 
-### SIGCHLD信号 
+![image-20260303183057319](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303183057319.png)
+
+
+
+`sigset_t set`; 自定义信号集 实际是个位图，每一位默认为0 
+
+sigset_t类型的本质是位图。但不应该直接使用位操作，而应该使用下面的函数操作sigset_t，保证跨系统操作有效。
+
+头文件`<signal.h>`
+
+`sigemptyset(sigset_t *set)` 清空信号集 全部置0
+
+`sigefillset(sigset_t *set)` 全部置1
+
+`sigaddset(sigset_t *set, int signum)` 将一个信号添加到集合中 signum对应的那一位设置为1
+
+`sigdelset(sigset_t *set, int signum)` 将一个信号从集合中移除
+
+`sigismember(const sigset_t *set, int signum) ` 判断一个信号是否在集合，在返回1，不在返回0
+
+设置信号屏蔽字（阻塞信号集）和解除屏蔽
+
+`int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);`
+
+成功：0；失败：-1，设置errno
+
+set：传入参数，是一个位图，set中哪位置1，就表示当前进程屏蔽哪个信号，即自定义信号集set。
+
+oldset：传出参数，保存旧的信号屏蔽集mask。
+
+how参数取值：假设当前的信号屏蔽字为mask
+
+1.SIG_BLOCK:当how设置为此值，set表示需要屏蔽的信号。相当于mask = mask|set
+
+2.SIG_UNBLOCK:当how设置为此，set表示需要解除屏蔽的信号。相当于mask = mask & ~set
+
+3.SIG_SETMASK:当how设置为此，set表示用于替代原始屏蔽及的新屏蔽集。相当于mask = set若，调用sigprocmask解除了对当前若干个信号的阻塞，则在sigprocmask返回前，至少将其中一个信号递达。
+
+读取当前进程的未决信号集的函数：
+
+`int sigpending(sigset_t *set);` set传出参数,代表未决信号集。返回值：成功：0；失败：-1，设置errno
+
+**代码示例：**
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303220118120.png" alt="image-20260303220118120" style="zoom:50%;" />
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260303220131705.png" style="zoom:50%;" />
+
+### SIGCHLD信号
+
+（signal child）
+
+以下情况，子进程会向父进程发送信号：
+
+* 子进程终止时
+
+* 子进程接收到SIGSTOP信号停止时
+
+* 子进程处在停止态，接受到SIGCONT后唤醒时
+
+==父进程利用信号回收多个子进程程序：==
+
+![image-20260304101849335](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304101849335.png)
+
+![image-20260304101939550](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304101939550.png)
+
+现象：会出现僵尸态（僵尸态就是子进程已经死亡，但是父进程还没有回收）
+
+原因：信号捕捉函数执行期间，可能会有多个子进程同时死亡，同时向父进程发送信号，但是会被阻塞。当捕捉函数执行完成后，由于不排队，虽然发送了多个信号，但是父进程只会处理其中一个信号，因此其他的子进程就变成了僵尸态。
+
+解决方法：信号捕捉函数内部设置循环，用一次捕捉回收多个子进程。
+
+![image-20260304102506659](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304102506659.png)
+
+bug：可能会出现父进程还没有注册好信号回调函数，子进程就已经死亡了。（如果子进程执行得极快，在父进程还没来得及调用 `sigaction` 注册好回调函数时就已经 `exit` 了，那么内核发给父进程的 `SIGCHLD` 信号就会按默认动作处理（即忽略），导致子进程变成僵尸进程。）
+
+解决方法：把子进程死亡时发过来的信号设置为阻塞，捕捉函数注册完，再改成非阻塞。
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+void catch_child(int signo) //信号捕捉函数
+{
+    pid_t wpid;
+//此处有bug 使用 wait(NULL) 会导致如果还有一个子进程没死，父进程就会永远卡死在这个信号处理函数里出不去！
+    //while((wpid = wait(NULL)) != -1) { 
+    while((wpid = waitpid(-1, NULL, WNOHANG)) > 0) { //WNOHANG (非阻塞) WNOHANG 的意思是“非阻塞”——如果有死掉的子进程就回收；如果没有死掉的，就立刻返回 0
+        printf("----------------catch child id %d\n", wpid);
+    }
+
+    return ;
+}
+
+int main(int argc, char *argv[])
+{
+    pid_t pid;
+    int i;
+   // 1. 设置阻塞集，在 fork 之前阻塞 SIGCHLD
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGCHLD);
+    
+    // 把 SIGCHLD 加入当前进程的信号屏蔽字中
+    sigprocmask(SIG_BLOCK, &set, NULL);
+    
+    for (i = 0; i < 5; i++) //循环创建多个子进程
+        if ((pid = fork()) == 0)
+            break;
+
+    if (5 == i) { //父进程代码
+        struct sigaction act;
+
+        act.sa_handler = catch_child;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+
+        sigaction(SIGCHLD, &act, NULL); //注册信号捕捉函数
+		//解除阻塞
+        sigprocmask(SIG_UNBLOCK, &set, NULL);
+        printf("I'm parent, pid = %d\n", getpid());
+
+        while (1); //回收完子进程，继续执行剩余工作
+        
+    } else { //子进程代码
+        printf("I'm child pid = %d\n", getpid());
+    }
+    
+    return 0;
+}
+```
+
+可能还有bug：
+
+比如在注册捕捉函数前，有多个子进程死亡，会给父进程发送多个信号，这些信号都被阻塞了，由于信号不支持排队，那么解除阻塞后到达父进程的只有一个信号。
+
+实际上这个隐藏的bug已经被捕捉函数中的waitpid循环化解了。
+
+总结一下：父进程利用信号回收多个子进程：
+
+![image-20260304111756069](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260304111756069.png)
+
+
+
+
+
+**SIGCHLD信号注意问题**
+
+1. 子进程继承父进程的信号屏蔽字和信号处理动作，但子进程没有继承未决信号集spending。
+2. 注意注册信号捕捉函数的位置。
+3. 应该在fork之前，阻塞SIGCHLD信号。注册完捕捉函数后解除阻塞。
+
+
+
+> 拓展：慢速系统调用
+>
+> 系统调用可分为两类：慢速系统调用和其他系统调用。
+>
+> 慢速系统调用：可能会使进程永远阻塞的一类。如果在阻塞期间收到一个信号，该系统调用就被中断,不再继续执行(早期)；也可以设定系统调用是否重启。如，read、write、pause、wait...
+>
+> 其他系统调用：getpid、getppid、fork...
+>
+> 慢速系统调用被信号中断后比如read函数正在阻塞等待数据，突然来了一个ctrl+c信号，read函数被终止，处理完该信号，read函数应该被恢复，这才是合理的。
+>
+> 我们可以修改sa_flags参数来设置被信号中断后系统调用是否重启。SA_INTERRURT不重启。SA_RESTART重启。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 线程
 
@@ -1801,7 +2281,7 @@ int main(int argc,char *argv[])
   <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260221100222629.png" alt="image-20260221100222629" style="zoom:67%;" />
 
 * 信号量的应用场景：
-<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260221100314735.png" alt="image-20260221100314735" style="zoom:67%;" />
+  <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260221100314735.png" alt="image-20260221100314735" style="zoom:67%;" />
 
 `ipcs -s`：查看信号量
 
