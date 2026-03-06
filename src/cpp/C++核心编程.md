@@ -4308,7 +4308,7 @@ int main()
 		cout << "打开文件" << filename << "失败。\n";  return 0;
 	}
 	
-	fs.seekg(26);    // 把文件位置指针移动到第26字节处。应该在第二行漂。
+	fs.seekg(26);    // 把文件位置指针移动到第26字节处（注意要从第0个字节开始数）。应该在第二行亮。
 
 	fs << "我是一只傻傻的小菜鸟。\n"; 
 
@@ -4665,4 +4665,118 @@ C++11新增了静态断言``static_assert`，用于在编译时检查源代码�
 语法：``static_assert(常量表达式,提示信息);``
 
 注意：static_assert的第一个参数是**常量表达式**。而assert的表达式既可以是常量，也可以是变量。
+
+
+
+## 仿函数
+
+```cpp
+// 1. 定义一个结构体（或类）
+struct Adder {
+    // 2. 重载 () 运算符
+    int operator()(int a, int b) const { 
+        return a + b; 
+    }
+};
+
+int main() {
+    Adder myAdd;           // 实例化一个对象
+    int result = myAdd(3, 4); //对象当成函数来调用
+    return 0;
+}
+```
+
+编译器会自动把myAdd(3,4)翻译成myAdd.operator()(3,4)；
+
+仿函数的优势：
+
+仿函数本质上就是一个类，类可以有自己的成员变量，意味着可以携带状态。
+
+**场景：我想写一个功能，每次传进一个数字，都给它加上一个“基础值”。这个基础值是动态设置的。**
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+// 这是一个带有状态的仿函数
+class AddBase {
+private:
+    int base_val; // 这是它的“记忆”
+public:
+    // 通过构造函数设置基础值
+    AddBase(int val) : base_val(val) {} 
+
+    // 执行相加操作
+    int operator()(int x) const {
+        return x + base_val;
+    }
+};
+
+int main() {
+    AddBase add5(5);   // 创建一个“加5”的仿函数对象
+    AddBase add10(10); // 创建一个“加10”的仿函数对象
+
+    std::cout << add5(100) << std::endl;  // 输出 105
+    std::cout << add10(100) << std::endl; // 输出 110
+}
+```
+
+性能碾压普通函数指针：在 STL（标准模板库）中，我们经常需要把一段逻辑作为参数传给算法，比如 std::sort 排序。如果传**普通函数指针**：编译器在编译期很难判断这个指针到底指向哪里，所以通常**无法进行内联优化（Inline）**，运行时会有函数调用的开销。
+
+如果传**仿函数**：仿函数是一个具体的类类型，传递的是对象。编译器在编译期清清楚楚地知道你要调用的就是这个类的 operator()，因此可以直接将代码**内联展开**。
+
+sort手写仿函数：
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <string>
+
+// 1. 定义一个学生结构体
+struct Student {
+    std::string name;
+    int score;
+};
+
+// 2. 定义仿函数：按成绩降序排序的“裁判”
+struct CompareScoreDesc {
+    // 重载 () 运算符
+    bool operator()(const Student& a, const Student& b) const {
+        // 如果 a 的分数大于 b 的分数，a 就排在前面 (返回 true)
+        return a.score > b.score; 
+    }
+};
+
+int main() {
+    std::vector<Student> students = {
+        {"Alice", 85},
+        {"Bob", 95},
+        {"Charlie", 80},
+        {"David", 95}
+    };
+
+    // 3. 将仿函数的实例传递给 std::sort
+    // 注意：CompareScoreDesc() 是在创建一个匿名的仿函数对象传入
+    std::sort(students.begin(), students.end(), CompareScoreDesc());
+
+    // 输出结果
+    for (const auto& s : students) {
+        std::cout << s.name << ": " << s.score << std::endl;
+    }
+
+    return 0;
+}
+```
+
+
+
+
+
+
+
+
+
+
 
