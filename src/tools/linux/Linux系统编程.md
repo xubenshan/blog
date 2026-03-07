@@ -1,4 +1,4 @@
-# Linux系统编程
+Linux系统编程
 
 > 参考：
 >
@@ -21,6 +21,10 @@
 * 是否访问外部硬件资源
 
 满足其中一个就是系统函数。
+
+C标准函数和系统函数调用关系。一个helloworld如何打印到屏幕。
+
+![image-20260307132132508](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307132132508.png)
 
 **系统资源**：CPU、内存、总线等操作系统运行需要用到的一系列东西的总称。 
 
@@ -533,25 +537,120 @@ int main()
 
   
 
-### 预读入缓输出机制  
+### 预读入缓输出机制
 
-### 文件IO
+为什么用库函数fgetc/fputc一个字节一个字节的读/写文件，比用系统调用read/write一个字节一个字节的读/写文件要快？
 
-**open、read和write函数** 
+![image-20260307145440289](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307145440289.png)
+
+`read` 是系统调用，每读取一个字节都要进行一次用户态到内核态的上下文切换。在高频调用下，CPU 大量时间浪费在切换模式上，而不是实际的数据处理。
+
+而 `fgetc` 是C 标准库提供的函数，它内置了**用户级缓冲区**（蓝色方框）。它采用‘预读’策略，一次性通过 `read` 从内核读取一大块数据（如 4KB）到用户态内存中。后续的读取操作直接在内存中进行。本质上，`fgetc` 是通过**减少系统调用的次数**来大幅提升性能的。
+
+> 拓展：shell中使用strace命令跟踪程序执行，查看调用的系统函数。
+
+
+
+## 文件IO
+
+#### **open、read和write函数**
+
+ `int open(const char *pathname, int flags);` 
+
+* flags的取值：O_RDONLY、O_WRONLY、O_RDWR O_APPEND（追加）、O_CREAT、O_EXCL（是否存在 已经存在则调用open函数失败，不存在则正常创建）、O_TRUNC（截断 将原本的内容清空）、O_NONBLOCK（非阻塞）
+
+* open函数成功返回文件描述符，失败返回-1，设置errno。
+
+`int open(const char *pathname, int flags, mode_t mode);`
+
+* mode八进制整型，创建文件的时候需要设置权限。权限同时受umask影响。
+* 文件权限=mode&~umask
+
+`fd = open("./dict.c",O_RDONLY | O_CREAT | O_TRUNC,0644);`
+
+上述语句的含义是，如果存在dict.c文件，就以只读的方式打开，并且将原本内容清0；如果不存在dict.c文件，就创建该文件，并指定文件权限为0644&~umask。
+
+`int close(int fd);`
+
+open常见错误：
+
+* 打开文件不存在
+* 以写方式打开只读文件
+* 以只写方式打开目录（打开目录有专门的函数）
+
+`ssize_t read(int fd, void *buf, size_t count);` 
+
+* count代表一次能读多少字节，通常设置为buf缓冲区的大小
+* 成功返回读到的字节数，失败返回-1，设置errno。返回0代表读到文件末尾。 
+* 返回-1，并且errno=EAGIN或EWULDBLOCK，说明read没有读取失败，而是read在以非阻塞方式读一个设备或网络文件，并且文件无数据。
+
+`ssize_t write(int fd, const void *buf, size_t count)`
+
+* count代表写入的内容大小
+* 成功返回写入的字节数，失败返回-1，设置errno
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
+
+int main(int argc, char *argv[]) {
+    // 检查参数数量（实际运行需要传入源文件和目标文件）
+    if (argc < 3) {
+        printf("Usage: %s <src> <dest>\n", argv[0]);
+        return 1;
+    }
+
+    char buf[1024];
+    int n = 0;
+
+    // 以只读方式打开源文件
+    int fd1 = open(argv[1], O_RDONLY); 
+    if (fd1 == -1) { perror("open src"); return 1; }
+
+    // 以读写、创建、截断方式打开目标文件，权限为 0664
+    int fd2 = open(argv[2], O_RDWR | O_CREAT | O_TRUNC, 0664);
+    if (fd2 == -1) { perror("open dest"); return 1; }
+
+    // 循环读取并写入
+    while ((n = read(fd1, buf, 1024)) != 0) {
+        if (n == -1) { perror("read"); break; }
+        write(fd2, buf, n);
+    }
+
+    close(fd1);
+    close(fd2);
+
+    return 0;
+}
+```
+
+
+
+
 
 `write` 永远是从读写指针“当前所指的这一位”开始写入（覆盖）的
 
- ## 文件描述符（File Descriptor）
+ #### 文件描述符（File Descriptor）
 
-PCB进程控制块是一个结构体，里面有个成员是一个指向文件描述符表的指针。
-
-一个进程可以打开1024个文件。
+内核区存在PCB进程控制块，是一个结构体，里面有个成员是一个指向文件描述符表的指针。
 
 一个文件描述符指向一个成功打开的文件结构体，结构体中包含文件的各种信息。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260121115629650.png" alt="image-20260121115629650" style="zoom: 33%;" />
 
-## 阻塞和非阻塞
+文件描述符0对应标准输入STDIN_FILENO；1对应标准输出STDOUT_FILENO；2对应标准错误STDERR_FILENO
+
+一个进程默认打开文件的个数1024。命令查看`ulimit -a`查看open files对应值。默认为1024。可以使用`ulimit -n 4096`修改。
+
+`cat /proc/sys/fs/file-max`可以查看该电脑最大可以打开的文件个数。受内存大小影响。
+
+**打开的文件的fd为文件描述符表中可用的最小值。**
+
+#### 阻塞和非阻塞
 
 产生阻塞的场景：读设备文件、读网络文件。读常规文件没有阻塞概念。阻塞和非阻塞是文件的属性。
 
@@ -560,10 +659,322 @@ PCB进程控制块是一个结构体，里面有个成员是一个指向文件�
 与睡眠状态相对的是运行（Running）状态，在Linux内核中，处于运行状态的进程分为两种情况：
 
 * 正在被调度执行。CPU处于该进程的上下文环境中，程序计数器（eip）里保存着该进程的指令地址，通用寄存器保存着该进程运算过程的中间结果，正在执行该进程的指令正在读写该进程的地址空间。
-* 就绪状态。该进程不需要等待什么事件发生，随时都可以执行，但CPU暂时还在执行
-  另一个进程，所以该进程在一个就绪队列中等待被内核调度。系统中可能同时有多个就绪的进程，那么该调度谁执行呢？内核的调度算法是基于优先级和时间片的，而且会根据每个进程的运行情况动态调整它的优先级和时间片，让每个进程都能比较公平地得到机会执行，同时要兼顾用户体验，不能让和用户交互的进程响应太慢
+* 就绪状态。该进程不需要等待什么事件发生，随时都可以执行，但CPU暂时还在执行另一个进程，所以该进程在一个就绪队列中等待被内核调度。系统中可能同时有多个就绪的进程，那么该调度谁执行呢？内核的调度算法是基于优先级和时间片的，而且会根据每个进程的运行情况动态调整它的优先级和时间片，让每个进程都能比较公平地得到机会执行，同时要兼顾用户体验，不能让和用户交互的进程响应太慢
 
-## 传入传出参数
+在系统编程这个阶段，我们先来用设备文件来演示阻塞。
+
+/dev/tty是终端文件，标准输入、标准输出、标准错误都跟该文件有关。
+
+阻塞方式读文件：
+
+```cpp
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int main(void) {
+    char buf[10];
+    int n;
+
+    // 默认情况下 STDIN_FILENO是阻塞的
+    n = read(STDIN_FILENO, buf, 10); //从标准输入中读数据，读到buf中，一次最多读10个字节。
+    if (n < 0) {
+        perror("read STDIN_FILENO");
+        exit(1);
+    }
+
+    write(STDOUT_FILENO, buf, n);
+
+    return 0;
+}
+```
+
+非阻塞方式读文件+轮询：
+
+```cpp
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(void) {
+    char buf[10];
+    int fd, n;
+
+    // 以非阻塞方式打开当前终端设备
+    fd = open("/dev/tty", O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        perror("open /dev/tty");
+        exit(1);
+    }
+
+tryagain:
+    n = read(fd, buf, 10);//为什么不是从标准输入中读
+    if (n < 0) {
+        // EAGAIN 表示当前没数据，如果是其他错误则退出
+        if (errno != EAGAIN) { 
+            perror("read /dev/tty");
+            exit(1);
+        } else {
+            write(STDOUT_FILENO, "try again\n", strlen("try again\n"));
+            sleep(2);
+            goto tryagain;
+        }
+    }
+
+    write(STDOUT_FILENO, buf, n);
+    close(fd);
+
+    return 0;
+}
+```
+
+非阻塞方式读文件+超时机制：
+
+```cpp
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MSG_TRY "no data yet, retrying...\n"
+#define MSG_TIMEOUT "timeout: no input received\n"
+
+int main(void) {
+    char buf[10];
+    int fd, n, i;
+
+    fd = open("/dev/tty", O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        perror("open /dev/tty");
+        exit(1);
+    }
+    printf("open /dev/tty ok... fd=%d\n", fd);
+
+    for (i = 0; i < 5; i++) {
+        n = read(fd, buf, 10);
+        if (n >= 0) {
+            break; // 说明读到了东西，跳出循环
+        }
+
+        if (errno != EAGAIN) {
+            perror("read /dev/tty");
+            exit(1);
+        } else {
+            write(STDOUT_FILENO, MSG_TRY, strlen(MSG_TRY));
+            sleep(2);
+        }
+    }
+
+    if (i == 5) {
+        write(STDOUT_FILENO, MSG_TIMEOUT, strlen(MSG_TIMEOUT));
+    } else {
+        write(STDOUT_FILENO, buf, n);
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+
+
+**fcntl改文件属性：**
+
+【改变一个已经打开的文件的访问控制属性】
+
+`int fcntl(int fd,int cmd, ..../*arg*/);`
+
+* F_GETFL获取文件状态 F_SETFL设置文件状态
+* 返回一个int类型，用flag接收，flag实际是个位图。
+* ![image-20260307150420732](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307150420732.png)
+
+```cpp
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MSG_TRY "try again\n"
+
+int main(void)
+{
+    char buf[10];
+    int flags, n;
+
+    // 1. 获取 stdin 属性信息
+    flags = fcntl(STDIN_FILENO, F_GETFL);//flags是位图
+    if (flags == -1) {
+        perror("fcntl error");
+        exit(1);
+    }
+
+    // 2. 修改标志位为非阻塞
+    flags |= O_NONBLOCK;
+    int ret = fcntl(STDIN_FILENO, F_SETFL, flags);//设置文件描述符状态
+    if (ret == -1) {
+        perror("fcntl error");
+        exit(1);
+    }
+
+tryagain:
+    // 3. 尝试读取
+    n = read(STDIN_FILENO, buf, 10);
+    if (n < 0) {
+        // 如果 errno 为 EAGAIN，说明当前没有数据可读，而不是真的出错了
+        if (errno != EAGAIN) {
+            perror("read /dev/tty");
+            exit(1);
+        }
+        
+        sleep(3);
+        write(STDOUT_FILENO, MSG_TRY, strlen(MSG_TRY));
+        goto tryagain;
+    }
+
+    // 4. 读取成功，写到标准输出
+    write(STDOUT_FILENO, buf, n);
+
+    return 0;
+}
+```
+
+
+
+**lseek函数：**
+
+用来修改文件偏移量（读写位置）
+
+`off_t lseek(int fd, off_t offset, int whence)`
+
+* whence：SEEK_SET SEEK_CUR SEEK_END
+* 返回值：从文件起始位置的偏移量 失败返回-1，设置errno
+* 文件的读和写使用的是同一个偏移位置。
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <fcntl.h>
+
+int main(void)
+{
+    int fd, n;
+    char msg[] = "It's a test for lseek\n";
+    char ch;
+
+    // 以读写模式打开文件，如果不存在则创建
+    fd = open("lseek.txt", O_RDWR | O_CREAT, 0644);
+    if (fd < 0) {
+        perror("open lseek.txt error");
+        exit(1);
+    }
+
+    // 1. 写入数据。写入后，文件指针位于文件末尾
+    write(fd, msg, strlen(msg));
+
+    // 2. 关键步骤：移动文件指针
+    // 如果注释掉下面这一行，随后的 read 将读不到任何内容，因为指针在结尾
+    lseek(fd, 0, SEEK_SET); // 将指针移动到文件开头
+
+    // 3. 读取并打印到屏幕
+    while ((n = read(fd, &ch, 1))) {
+        if (n < 0) {
+            perror("read error");
+            exit(1);
+        }
+        write(STDOUT_FILENO, &ch, n); // 写出到屏幕
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+
+
+小技巧：可以用lseek获取文件大小
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int main(int argc, char *argv[])
+{
+    if (argc < 2) {
+        printf("Usage: ./get_file_size filename\n");
+        return 1;
+    }
+
+    // 打开由命令行参数指定的文件
+    int fd = open(argv[1], O_RDWR);
+    if (fd == -1) {
+        perror("open error");
+        exit(1);
+    }
+
+    // 使用 lseek 获取文件大小
+    // SEEK_END 表示从文件末尾开始偏移，0 表示偏移量为0
+    int lenth = lseek(fd, 0, SEEK_END);
+    printf("file size:%d\n", lenth);
+
+    close(fd);
+    return 0;
+}
+```
+
+![image-20260307154654489](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307154654489.png)
+
+
+
+小技巧：可以用lseek函数改变文件大小，要想真正改变文件大小，必须引起IO操作。
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int main(int argc, char *argv[])
+{
+    if (argc < 2) {
+        printf("Usage: ./get_file_size filename\n");
+        return 1;
+    }
+
+    // 打开由命令行参数指定的文件
+    int fd = open(argv[1], O_RDWR);
+    if (fd == -1) {
+        perror("open error");
+        exit(1);
+    }
+
+    // 使用 lseek改变文件大小 文件原来大小为a，则lseek改变文件大小为a+111。
+    int lenth = lseek(fd, 110, SEEK_END);
+    printf("file size:%d\n", lenth);
+    write(fd,"A",1);
+
+    close(fd);
+    return 0;
+}
+```
+
+
+
+
+
+### 传入传出参数
 
 传入参数：
 
@@ -585,7 +996,7 @@ PCB进程控制块是一个结构体，里面有个成员是一个指向文件�
 * 在函数内部先做读操作、再做写操作
 * 函数调用结束后，可以充当函数返回值的功能。
 
-## 环境变量
+### 环境变量
 
 比如 PATH SHELL TERM（终端）HOME（用户主目录）
 
@@ -598,9 +1009,363 @@ name=value键值对
 
 环境变量、main函数的命令行参数放在stack的上面。
 
+## 文件系统
+
+文件系统是，一组规则，规定对文件的存储及读取的一般方法。文件系统在磁盘格式化过程中指定。常见的文件系统有：fat32 ntfs exfat ext2、ext3、ext4
+
+### 文件存储
+
+首先先了解文件存储的相关概念：
+
+inode：其本质为结构体，存储文件的属性信息。如：权限、类型、大小、时间、用户、盘块位置……也叫作文件属性管理结构，大多数的inode都存储在磁盘上。
+
+![image-20260307160932619](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307160932619.png)
+
+dentry：目录项，其本质依然是结构体，重要成员变量有两个{文件名，inode，...}，而文件内容(data)保存在磁盘盘块中。
+
+~~一个文件由dentry和inode组成。~~
+
+### stat函数和lstat函数
+
+获取文件属性
+
+`int stat(const char*path, struct stat *buf)`
+
+* 第一个参数：文件路径
+* 第二个参数：传出参数，原来存储文件属性。
+* 成功--0 失败---1，设置errno
+
+获取文件大小：buf.st_size
+
+获取文件类型和权限：buf.st_mode 可以通过宏进行判断。
+
+![image-20260307162706510](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307162706510.png)
+
+stat函数和lstat函数的主要区别在于如何处理**符号链接（软链接）**
+
+* 如果目标是一个符号链接，stat会顺着链接找到它指向的**原始文件**，并返回该原始文件的属性。
+* 如果目标是一个符号链接，lstat会直接返回该**链接文件本身**的属性（如链接的大小、权限等），而不是它指向的文件。
+
+### access函数
+
+测试指定文件是否拥有某种权限。
+
+`int access(const char*pathname, int mode)`
+
+* 成功返回0，失败返回-1，设置errno
+* 参数2：R_OK、W_OK、X_OK F_OK（文件是否存在）
+
+chmod函数
+
+修改文件的访问权限。
+
+`int chmod(const char*path, mode_t mode)`
+
+* 成功返回0，失败返回-1，设置errno
+
+`int fchmod(int fd, mode_t mode)`
+
+### truncate函数
+
+拓展文件大小
+
+`int truncate(const char*path off_t length);`
+
+* 成功返回0，失败返回-1，设置errno
+
+* 第二个参数：文件将拓展成该大小
+
+  如果原文件大小小于 `length`，文件会被扩展。中间空出来的部分会被填充为 `\0`（null bytes），这在磁盘上形成了所谓的“文件空洞”。
+
+`int ftruncate(int fd, off_t length);`
+
+* 通过**文件描述符**（fd）来操作，必须先用 `open()` 打开文件并获得写权限。
+
+### link和unlink函数
+
+硬链接就像是一个文件的“别名”。在 Linux 中，每个文件都有一个唯一的 `inode` 号，硬链接实际上是创建一个新的dentry，并将其指向已有的 `inode`。
+
+软链接创建一个新的文件，其数据块里存放的是目标文件的路径字符串。软链接有自己独立的 `inode` 号和文件属性。
+
+创建硬链接（目录项）：
+
+`int link(const char* oldpath, const char* newpath)`
+
+删除目录项：
+
+ `int unlink(const char*pathname)`
+
+用link函数实现mv（重命名）命令：先创建一个硬链接，然后删除之前的硬链接。
+
+![image-20260307164409968](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307164409968.png)
+
+注意Linux下删除文件的机制：不断将st_nlink -1，直至减到0为止。无目录项对应的文件，将会被操作系统择机释放。(具体时间由系统内部调度算法决定)
+
+因此，我们删除文件，从某种意义上说，只是让文件具备了被释放的条件。
+
+unlink函数的特征：清除文件时，如果文件的硬链接数到0了，没有dentry对应，但该文件仍不会马上被释放。要等到所有打开该文件的进程关闭该文件，系统才会挑时间将该文件释放掉。
+
+### 隐式回收
+
+当进程结束运行时，所有该进程打开的文件会被关闭，申请的内存空间会被释放。系统的这一特性称之为隐式回收系统资源。
 
 
 
+### 目录操作函数
+
+头文件：dirent.h
+
+opendir函数
+
+`DIR* opendir(const char *name)`
+
+* 成功返回指向该目录结构体指针，失败返回NULL，设置errno
+
+  
+
+closedir函数
+
+`int closedir(DIR* dirp)`
+
+* 失败-1，设置errno；成功返回0
+
+
+
+readdir函数
+
+`struct dirent* readdir(DIR* dirp)`
+
+* 成功返回目录项结构体指针；失败返回NULL，设置errno
+* 需注意返回值，读取数据结束时也返回NULL值，所以应借助errno进一步加以区分。
+* ![image-20260307171210400](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307171210400.png)
+
+文件、目录权限
+
+![image-20260307170215982](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307170215982.png)
+
+
+
+实现ls命令：
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <pthread.h>
+
+int main(int argc, char *argv[])
+{
+    if (argc < 2) {
+        printf("Usage: ./a.out dirname\n");
+        return 1;
+    }
+
+    DIR *dp; //目录结构体指针
+    struct dirent *sdp;// 目录项结构体指针
+
+    // 打开目录流
+    dp = opendir(argv[1]);
+    if (dp == NULL) {
+        perror("opendir error");
+        exit(1);
+    }
+
+    // 循环读取目录项
+    while ((sdp = readdir(dp)) != NULL) {
+        // 过滤掉以 "." 开头的文件（包括 . 和 ..）
+        if (sdp->d_name == '.' || sdp->d_name == '..') {
+            continue;
+        }
+        printf("%s\t", sdp->d_name);
+    }
+    printf("\n");
+
+    closedir(dp);
+    return 0;
+}
+```
+
+
+
+
+
+递归遍历目录代码：查询指定目录，递归列出目录中的文件，同时显示文件大小。
+
+* 判断命令行参数个数 if(argc == 1) 默认查询当前目录./ argv[1]指定目录名
+* 判断用户指定的是否是目录 stat的宏S_ISDIR() 封装成一个函数
+* 读目录  不是文件就递归调用opendir（先sprintf拼接目录访问绝对路径）
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+// 函数声明
+void isFile(char *name);
+void read_dir(char *dir，void (*func)(char*));
+
+// 处理单个文件/目录的逻辑
+void isFile(char *name) {
+    struct stat sb;
+    // 获取文件属性，判断文件类型
+    if (stat(name, &sb) == -1) {
+        perror("stat error");
+        return;
+    }
+
+    // 如果是目录文件，递归调用 read_dir
+    if (S_ISDIR(sb.st_mode)) {
+        read_dir(name);
+    }
+
+    // 如果是普通文件，显示名字和大小
+    printf("%10s\t%ld\n", name, sb.st_size);
+}
+
+// 读取目录内容的逻辑
+void read_dir(char *dir) {
+    char path[256];
+    DIR *dp;
+    struct dirent *sdp;
+
+    dp = opendir(dir);
+    if (dp == NULL) {
+        perror("opendir error");
+        return;
+    }
+
+    while ((sdp = readdir(dp)) != NULL) {
+        // 过滤掉 "." 和 ".." 防止死循环
+        if (strcmp(sdp->d_name, ".") == 0 || strcmp(sdp->d_name, "..") == 0) {
+            continue;
+        }
+        // 拼接路径
+        sprintf(path, "%s/%s", dir, sdp->d_name);
+        isFile(path);
+    }
+
+    closedir(dp);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) { //用户没有指定路径，就默认是当前路径
+        read_dir(".");
+    } else {
+        read_dir(argv[1]);
+    }
+    return 0;
+}
+```
+
+也可以这样使用回调函数：
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+// 函数声明
+void isFile(char *name);
+void read_dir(char *dir);
+
+// 处理单个文件/目录的逻辑
+void isFile(char *name) { //回调函数
+    struct stat sb;
+    // 获取文件属性，判断文件类型
+    if (stat(name, &sb) == -1) {
+        perror("stat error");
+        return;
+    }
+
+    // 如果是目录文件，递归调用 read_dir
+    if (S_ISDIR(sb.st_mode)) {
+        read_dir(name,isFile);
+    }
+
+    // 如果是普通文件，显示名字和大小
+    printf("%10s\t%ld\n", name, sb.st_size);
+}
+
+// 读取目录内容的逻辑
+void read_dir(char *dir, void (*func)(char*)) {//用函数指针的方式传入isFile函数
+    char path[256];
+    DIR *dp;
+    struct dirent *sdp;
+
+    dp = opendir(dir);
+    if (dp == NULL) {
+        perror("opendir error");
+        return;
+    }
+
+    while ((sdp = readdir(dp)) != NULL) {
+        // 过滤掉 "." 和 ".." 防止死循环
+        if (strcmp(sdp->d_name, ".") == 0 || strcmp(sdp->d_name, "..") == 0) {
+            continue;
+        }
+        // 拼接路径
+        sprintf(path, "%s/%s", dir, sdp->d_name);
+        func(path);
+    }
+
+    closedir(dp);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) { //用户没有指定路径，就默认是当前路径
+        read_dir(".",isFile);
+    } else {
+        read_dir(argv[1].isFile);
+    }
+    return 0;
+}
+```
+
+
+
+### 重定向
+
+使用dup和dup2函数实现重定向。
+
+#### dup和dup2函数
+
+这两个函数允许你让多个文件描述符指向同一个打开的文件。
+
+头文件：`unistd.h`
+
+`int dup(int oldfd)`
+
+* 成功返回新的fd，失败返回-1
+* `dup` 会返回当前进程中**最小的、尚未被使用**的文件描述符，并将其指向目标文件。
+
+`int dup2(int oldfd, int newfd)`
+
+* 它允许你**指定**新的文件描述符的数值。如果目标描述符已经打开，系统会先自动将其关闭。
+* 成功返回newfd，失败返回-1，设置errno
+
+
+
+实现重定向的逻辑：
+
+如果你想把标准输出（`STDOUT_FILENO`，即 1 号 fd，1号fd本来指向的是标准输出也就是屏幕）重定向到 `fd`所指向的文件，你会这样写： `dup2(fd, STDOUT_FILENO);` 这表示：“让 1 号描述符不再指向屏幕，而是指向 `fd` 所对应的文件。”
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307202147937.png" alt="image-20260307202147937" style="zoom:50%;" />
+
+![image-20260307181820692](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307181820692.png)
+
+
+
+#### fcntl实现dup描述符
+
+fcntl第二个参数传F_DUPFD 返回一个新的文件描述符；第三个参数传newfd，如果newfd被占用了，就返回可用的最小文件描述符；如果没有被占用，就返回newfd。
+
+![image-20260307182840193](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260307182840193.png)
 
 ---------------------------------------------------------
 

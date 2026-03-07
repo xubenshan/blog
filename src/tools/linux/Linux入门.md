@@ -179,8 +179,11 @@ tail -f /home/mydate.txt
 
 ls -l /home >> /home/info.txt 将home目录下的文件列表写入info.txt中
 cat 文件1 > 文件2 将文件1的内容覆盖到文件2	
-ln指令：软链接、类似快捷方式，指向特定的路径。
+ln指令：
+软链接、类似快捷方式，指向特定的路径。
 ln -s /root /home/myroot 在home目录下创建一个软连接myroot，连接到root目录
+readlink /home/myroot    会得到/root
+ln 源文件 链接名 创建硬链接
 history 10 查看最近10个指令
  !5 执行历史记录为5的指令
  
