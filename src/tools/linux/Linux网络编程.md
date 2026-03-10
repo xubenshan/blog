@@ -144,7 +144,7 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 
   * domain：socket使用的协议族
 
-  ![image-20260308173041752](C:/Users/xubenshan/AppData/Roaming/Typora/typora-user-images/image-20260308173041752.png)
+  ![image-20260310212035826](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260310212035826.png)
 
   * type：套接字的数据传输方式：SOCK_STREAM(面向连接的套接字）、SOCK_DGRAM（面向消息的套接字）
   * protocol：通信中使用的协议（一般设置成0就行）如果同一协议族中存在多个数据传输方式相同的协议，那么就需要指定第三个参数
