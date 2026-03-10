@@ -154,6 +154,12 @@ markmap:
 
 Qt是一种跨平台的C++开发框架，主要用来开发Windows桌面应用。
 
+## C++相关岗位
+
+### AI Infra
+
+![image-20260308205932860](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260308205932860.png)
+
 
 
 
