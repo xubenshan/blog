@@ -77,7 +77,9 @@ inet_pton函数可以把点分十进制IP地址转化成网络字节序二进制
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205142759702.png" alt="image-20251205142759702" style="zoom:50%;" />
 
-> 还有一个函数inet_aton也可以把点分十进制IP地址转化成网络字节序的二进制形式。但是只支持IPV4协议，安全性也不高，所以现在基本不用了，只用pton函数。
+> 还有一个函数inet_aton也可以把点分十进制IP地址转化成网络字节序的二进制形式（inet_ntoa正好反过来，把网络字节序二进制形式转化成点分十进制IP地址）。但是只支持IPV4协议，安全性也不高，所以现在基本不用了，只用pton函数。
+>
+> `char* inet_ntoa(struct in_addr in);`
 >
 > ![image-20260309131453212](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309131453212.png)
 >
@@ -809,8 +811,6 @@ TCP协议的数据没有数据边界，比如服务端调用了1次write函数�
 
 如果只考虑可靠性，TCP的确比UDP好。但UDP的结构上比TCP更简洁。UDP不会发送类似ACK的应答消息，也不会像SEQ那样给数据包分配序号。因此，UDP的性能有时比TCP高出很多。编程中实现UDP也比TCP简单。另外，UDP的可靠性虽比不上TCP，但也不会像想象中那么频繁地发生数据损毁。因此，**在更重视性能而非可靠性的情况下，UDP是一种很好的选择。**
 
-
-
 由于UDP在传输数据前不需要建立连接，所以不用调用listen、accept函数。
 
 ![image-20260310101458339](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260310101458339.png)
@@ -1181,6 +1181,298 @@ int main(int argc , char * argv[])
 		printf("Message from server: %s",message);
 	}
 	close(sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+## 半关闭
+
+Linux中的close函数会同时断开这两个流，可能会存在问题。比如客户端发完数据之后断开了连接，之后客户端就无法接收服务端传输的数据。
+
+我们可以引入半关闭的概念，也就是关闭发送但不关闭接收；或者关闭接收，但不关闭发送，只断开两个流中的其中一个。
+
+![image-20260311090156369](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311090156369.png)
+
+半关闭函数：
+
+`int shutdown(int sockfd, int howto)`
+
+* 成功返回0，失败返回-1。
+* howto的取值：SHUT_RD SHUT_WR SHUT_RDWR
+
+若向shutdown的第二个参数传递`SHUT_RD`，则断开输入流，套接字无法接收数据。即使输入缓冲收到的数据也会抹去，而且无法调用输入相关函数。
+
+如果向shutdown函数的第二个参数传递`SHUT_WR`，则中断输出流，也就无法传输数据。但如**果输出缓冲还留有未传输的数据，则将传递至目标主机。**
+
+最后，若传入`SHUT_RDWR`，则同时中断I/O流。这相当于分2次调用shutdown，其中一次以SHUT_RD为参数，另一次以SHUT_WR为参数。
+
+
+
+### 基于半关闭的文件传输
+
+假设有一个场景：“一旦客户端连接到服务器端，服务器端就将约定的文件传给客户端，客户端收到后发送字符串‘Thank you’给服务器端。”由于客户端不知道要接收数据到什么时候，可能会一直调用read函数，导致程序阻塞。我们可以规定文件传输结束符EOF。服务器端发送完数据后，就传递EOF代表文件传输结束。客户端通过**函数返回值**接收EOF，这样可以避免与文件内容冲突。
+
+断开输出流时会自动向对方主机传输EOF。当然调用close函数也会向对方发送EOF，但这样服务端就无法收到客户端最后的“Thank you”。
+
+> 如何理解加粗的函数返回值：当服务器端发送完数据并调用 close() 或 shutdown() 关闭连接时，底层的 TCP 协议会发送一个 FIN 包。客户端的操作系统收到这个包后，再调用 read() 时，read函数就会返回 0。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311091622584.png" alt="image-20260311091622584" style="zoom:50%;" />
+
+服务端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int serv_sd, clnt_sd;
+	FILE * fp;
+	char buf[BUF_SIZE];
+	int read_cnt;
+
+	struct sockaddr_in serv_adr, clnt_adr;
+	socklen_t clnt_adr_sz;
+
+	if(argc != 2){
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	fp = fopen("file_server.c", "rb");	//打开文件，以向客户端传输文件file_server.c
+	serv_sd = socket(PF_INET, SOCK_STREAM, 0);
+
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	bind(serv_sd, (struct sockaddr*)&serv_adr, sizeof(serv_adr));
+	listen(serv_sd, 5);
+
+	clnt_adr_sz = sizeof(clnt_adr);
+	clnt_sd = accept(serv_sd, (struct sockaddr*)&clnt_adr, &clnt_adr_sz);
+
+	while(1)
+	{
+		read_cnt = fread((void*)buf, 1, BUF_SIZE, fp);	// 每次最多从fp中读取30个字节
+		if(read_cnt < BUF_SIZE)	//若不满30字节，说明最后的数据，将由最后一次write传输完成。
+		{
+			write(clnt_sd, buf, read_cnt);
+			break;
+		}
+		write(clnt_sd, buf, BUF_SIZE);
+	}
+
+	shutdown(clnt_sd, SHUT_WR);	//关闭输出流，依然可以通过输入流接收数据。
+    int strlen = read(clnt_sd, buf, BUF_SIZE - 1);
+    if (strlen > 0) 
+    {
+		buf[BUF_SIZE] = '\0';
+        printf("Message from client: %s \n", buf);
+    }
+    //memset(buf, 0, BUF_SIZE);//将buf清空
+	//read(clnt_sd, buf, BUF_SIZE - 1);
+	//printf("Message from client: %s \n", buf); //printf遇到0时才会结束打印。
+
+	fclose(fp);
+	close(clnt_sd);
+	close(serv_sd);
+	return 0;
+}
+
+void error_hadnling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+客户端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int sd;
+	FILE * fp;
+
+	char buf[BUF_SIZE];
+	int read_cnt;
+	struct sockaddr_in serv_adr;
+	if(argc != 3){
+		printf("Usage: %s <IP> <port>\n", argv[0]);
+		exit(1);
+	}
+
+	fp = fopen("receive.dat", "wb");	//创建新文件以保存服务器端传输的文件数据。
+	sd = socket(PF_INET, SOCK_STREAM, 0);
+
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_adr.sin_port = htons(atoi(argv[2]));
+
+	connect(sd, (struct sockaddr*)&serv_adr, sizeof(serv_adr));
+
+	while((read_cnt = read(sd, buf, BUF_SIZE )) != 0)	//当遇到文件结束尾，返回值为0，停止read函数调用
+		fwrite((void * )buf, 1, read_cnt, fp);
+
+	puts("Received file data");
+	write(sd, "Thank you", 10); // 最后向服务端传输数据，此时服务端处于半关闭状态，输出流关闭但输入流打开，仍可接收数据。
+	fclose(fp);
+	close(sd);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+## 域名
+
+域名转换IP函数：
+
+```cpp
+#include<netdb.h>
+struct hostent * gethostbyname(const char * hostname);
+```
+
+* 成功时返回hostent结构体地址，失败时返回NULL指针。
+* IP地址被存放到了hostent结构体中。
+
+```cpp
+struct hostent
+{
+	char * h_name;		//official name
+	char ** h_aliases;	//alias list 可以通过多个域名访问同一主页。同一IP可以绑定多个域名，因此，除官方域名外还可指定其他域名（可以看成官方域名的别名）。
+	int h_addrtype;		//host address type
+	int h_length;		//address length
+	char ** h_addr_list; //address list 只需关注这个 一个域名可以绑定多个IP地址，利用服务器的负载均衡。
+}
+```
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311102328602.png" alt="image-20260311102328602" style="zoom:50%;" />
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<netdb.h>
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int i;
+	struct hostent * host;
+	if(argc != 2){
+		printf("Usage : %s <addr>\n", argv[0]);
+		exit(1);
+	}
+
+	host = gethostbyname(argv[1]);
+	if(!host)
+		error_handling("gethost... error");
+
+	printf("Official name: %s \n", host->h_name);//%s 需要的是一个指针
+	for(i = 0; host->h_aliases[i]; i++)//循环体的循环条件为什么可以这样写？因为h_aliases数组最后一个元素是NULL，也就是0。
+		printf("Aliases %d: %s \n", i + 1, host->h_aliases[i]);
+	printf("Address type: %s \n",
+			(host->h_addrtype == AF_INET)?"AF_INET": "AF_INET6");
+	for(i = 0; host->h_addr_list[i]; i++)
+        //inet_ntoa把网络字节序转化成点分十进制
+		printf("IP addr %d: %s\n", i + 1,
+				inet_ntoa(*(struct in_addr*)host->h_addr_list[i]));
+	return 0;
+}
+
+void error_handling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+为什么需要`inet_ntoa(*(struct in_addr*)host->h_addr_list[i]));`强制类型转换。看下面这张图即可。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311104038366.png" alt="image-20260311104038366" style="zoom:50%;" />
+
+
+
+IP转换域名函数：
+
+`struct hostent * gesthostbyaddr(const char * addr, socklen_t len, int family) ;`
+
+* 成功时返回hostent结构体变量地址值，失败时返回NULL指针。
+
+* 参数1：`addr`，含有IP地址信息的`in_addr`结构体指针。 为了同时传递IPv4地址之外的其他信息，该变量的类型声明为char指针。
+
+* 参数2：`len`，向第一个参数传递的地址信息的字节数，IPv4时为4，IPv6时为16。
+
+* 参数3：family，传递地址族信息，IPv4时为AF_INET，IPv6时为AF_INET6。
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<netdb.h>
+void error_handling(char * message);
+// ip转化成域名
+int main(int argc, char * argv[])
+{
+	int i;
+	struct hostent * host;
+	struct sockaddr_in addr;
+	if(argc != 2){
+		printf("Usage: %s <IP>\n", argv[0]);
+		exit(1);
+	}
+
+	memset(&addr, 0, sizeof(addr));	
+	addr.sin_addr.s_addr = inet_addr(argv[1]);
+       	host = gethostbyaddr((char*)&addr.sin_addr, 4, AF_INET);
+	if(!host)
+		error_handling("gethost... error");
+
+	printf("Official name: %s \n", host->h_name);
+	for(i = 0; host->h_aliases[i]; i++)
+		printf("Aliases %d: %s", i + 1, host->h_aliases[i]);
+	printf("Address type: %s \n", 
+			(host->h_addrtype == AF_INET)? "AF_INET": "AF_INET6");
+	for(i = 0; host->h_addr_list[i]; i++)
+		printf("IP addr %d: %s\n", i + 1,
+				inet_ntoa(*(struct in_addr*)host->h_addr_list[i]));
 	return 0;
 }
 
