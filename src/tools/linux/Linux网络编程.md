@@ -9,6 +9,10 @@
 > [套接字](https://subingwen.cn/linux/socket/)
 >
 > [黑马Linux网络编程](https://www.bilibili.com/video/BV1iJ411S7UA/?share_source=copy_web&vd_source=2c7f42b63247f23de392dffcd83fd59f)
+>
+> 《TCP/IP网络编程》
+>
+> Socket 的本质是对 **TCP/IP 协议栈** 的编程接口封装。
 
 ## 前置知识
 
@@ -18,7 +22,7 @@
 
 ### 并发服务器
 
-所谓的并发服务器是指服务器能够同时处理多个客户端的请求
+所谓的并发服务器是指服务器能够**同时**处理多个客户端的请求（这里的同时是宏观上的）
 
 多个请求同时到达或被处理
 
@@ -207,7 +211,7 @@ inet_pton(AF_INET, "192.157.22.45", (void*)&dst);
 addr.sin_addr.s_addr=dst;
 ```
 
-可以利用常数INADDR_ANY自动获得服务器端的IP地址，数据类型是in_addr_t，也就是一个unit32_t类型。
+可以利用常数INADDR_ANY让 Socket**监听这台机器上的所有有效 IP 地址**，不管客户端发送数据的目的IP是服务器的哪个IP，只要端口是8888，就传给这个socket。（服务器通常有很多网卡，也就有很多IP地址。）数据类型是in_addr_t，也就是一个uint32_t类型。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205144623529.png" alt="image-20251205144623529" style="zoom:50%;" />
 
@@ -452,7 +456,7 @@ void error_handling(char *message)
 ```cpp
 while(1)
 {
-    ///////////
+    
 str_len = write(sock, message, strlen(message));
 recv_len = 0;
 while(recv_len != str_len)//revc_len<str_len
@@ -463,11 +467,9 @@ while(recv_len != str_len)//revc_len<str_len
 }
 massage[recv_len] = '\0';
 printf("Message from server: %s",message);
-    /////////
+    
 }
 ```
-
-
 
 ### 简单的C/S通信案例
 
@@ -1213,7 +1215,7 @@ Linux中的close函数会同时断开这两个流，可能会存在问题。比�
 
 最后，若传入`SHUT_RDWR`，则同时中断I/O流。这相当于分2次调用shutdown，其中一次以SHUT_RD为参数，另一次以SHUT_WR为参数。
 
-
+shutdown没有引用计数，close有引用计数。父进程fork子进程后，子进程调用close只会关闭套接字的一个文件描述符，只有父进程也调用close才可以关闭文件描述符。。而调用一次shutdown函数就可以关闭套接字。
 
 ### 基于半关闭的文件传输
 
@@ -1404,7 +1406,7 @@ int main(int argc, char * argv[])
 
 	printf("Official name: %s \n", host->h_name);//%s 需要的是一个指针
 	for(i = 0; host->h_aliases[i]; i++)//循环体的循环条件为什么可以这样写？因为h_aliases数组最后一个元素是NULL，也就是0。
-		printf("Aliases %d: %s \n", i + 1, host->h_aliases[i]);
+		printf("Aliases %d: %s \n", i + 1, host->h_aliases[i]);//->的优先级和[]一样，从左往右读。
 	printf("Address type: %s \n",
 			(host->h_addrtype == AF_INET)?"AF_INET": "AF_INET6");
 	for(i = 0; host->h_addr_list[i]; i++)
@@ -1422,7 +1424,11 @@ void error_handling(char *message)
 }
 ```
 
-为什么需要`inet_ntoa(*(struct in_addr*)host->h_addr_list[i]));`强制类型转换。看下面这张图即可。
+注意上述代码有几个细节：
+
+第一个：h_aliases是一个二级指针，指向一个数组，这个数组里面存放的是地址（一级指针）。如何得到这个数组中的元素，用`h_aliases[i]`即可。
+
+第二个：为什么需要`inet_ntoa(*(struct in_addr*)host->h_addr_list[i]));`强制类型转换。看下面这张图即可。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311104038366.png" alt="image-20260311104038366" style="zoom:50%;" />
 
@@ -1484,17 +1490,1162 @@ void error_handling(char * message)
 }
 ```
 
+## 套接字特性
+
+套接字可以通过可选项来修改特性。
+
+| 协议层      | 选项名            | 读取 | 设置 |
+| ----------- | ----------------- | ---- | ---- |
+| SOL_SOCKET  | SO_SNDBUF         | O    | O    |
+| SOL_SOCKET  | SO_RCVBUF         | O    | O    |
+| SOL_SOCKET  | SO_REUSERADDR     | O    | O    |
+| SOL_SOCKET  | SO_KEEPALIVE      | O    | O    |
+| SOL_SOCKET  | SO_BROADCAST      | O    | O    |
+| SOL_SOCKET  | SO_DONTROUTE      | O    | O    |
+| SOL_SOCKET  | SO_OOBINLINE      | O    | O    |
+| SOL_SOCKET  | SO_ERROR          | O    | X    |
+| SOL_SOCKET  | SO_TYPE           | O    | X    |
+| IPPROTO_IP  | IP_TOS            | O    | O    |
+| IPPROTO_IP  | IP_TTL            | O    | O    |
+| IPPROTO_IP  | IP_MULTICAST_TTL  | O    | O    |
+| IPPROTO_IP  | IP_MULTICAST_LOOP | O    | O    |
+| IPPROTO_IP  | IP_MULTICAST_IF   | O    | O    |
+| IPPROTO_TCP | TCP_KEEPALIVE     | O    | O    |
+| IPPROTO_TCP | TCP_NODELAY       | O    | O    |
+| IPPROTO_TCP | TCP_MAXSEG        | O    | O    |
+
+### getsockopt和setsockopt函数
+
+我们几乎可以针对上表中的所有可选项进行读取（Get）和设置（Set）（有些可选项只能进行一种操作）。可选项的读取和设置通过如下2个函数完成。(系统底层的东西一般都不会让你直接修改，都是给你封装几个函数来修改。)
+
+`int getsockopt(int sock, int level, int optname, void *optval, socklen_t * optlen);`
+
+* 成功时返回0，失败时返回-1。
+
+* 参数1：`sock`，用于查看可选项的套接字文件描述符。
+
+* 参数2：`level`，要查看的可选项协议层。
+
+* 参数3：`optname`，要查看的可选项名。
+
+* 参数4：`optval`，保存查看结果的缓冲地址值。
+
+* 参数5：`optlen`，向第四个参数optval传递的缓冲大小。调用函数后，该变量中保存通过第四个参数返回的可选项信息的字节数。
+
+`int setsockopt(int sock, int level, int optname, const void * optavl, socklen_t optlen);`
+
+* 成功时返回0，失败时返回-1。
+
+* 参数1：`sock`，用于更改可选项的套接字文件描述符。
+
+* 参数2：`level`，要更改的可选项协议层。
+
+* 参数3：`optname`，要更改的可选项名。
+
+* 参数4：`optval`，保存要更改的选项信息的缓冲地址值。
+
+* 参数5：`optlen`，向第四个参数optval传递的可选项信息的字节数。
+
+### SO_RCVBUF和SO_SNDBUF
+
+创建套接字将同时生成I/O缓冲。
+
+- SO_RCVBUF是输入缓冲大小相关可选项。
+- SO_SNDBUF是输出缓冲大小相关可选项。
+
+用这2个可选项既可以读取I/O缓冲大小，也可以进行更改。通过下列示例读取创建套接字默认的I/O缓冲大小。
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/socket.h>
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int sock;
+	int snd_buf, rcv_buf, state;
+	socklen_t len;
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	len = sizeof(snd_buf);
+	state = getsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+			(void*)&snd_buf, &len);
+	if(state)
+		error_handling("getsockopt() error");
+	
+	len = sizeof(rcv_buf);
+	state = getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+		       	(void*)&rcv_buf, &len);
+	if(state)
+		error_handling("getsockopt() error");
+
+	printf("Input buffer size: %d \n", rcv_buf );
+	printf("Output buffer size: %d \n", snd_buf);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+下面将通过setsocketopt来修改I/O缓冲
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/socket.h>
+void error_handling(char *message);
+
+int main(int argc, char * argv[])
+{
+	int sock;
+	int snd_buf = 1024 * 3, rcv_buf = 1024 * 3;
+	int state;
+	socklen_t len;
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	state = setsockopt(sock, SOL_SOCKET, SO_RCVBUF,		//更改输入缓冲为3M字节
+		       	(void *)&rcv_buf, sizeof(rcv_buf));
+	if(state)
+		error_handling("setsockeopt() error!");
+
+	state = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, 	//更改输出缓冲为3M字节
+			(void *)&snd_buf, sizeof(snd_buf));
+	if(state)
+		error_handling("setsockopt() error!");
+
+	len = sizeof(snd_buf);
+	state = getsockopt(sock, SOL_SOCKET, SO_SNDBUF,		//为了验证，读取输出缓冲大小
+			(void *)&snd_buf, &len);
+	if(state)
+		error_handling("getsockopt() error!");
+
+	len = sizeof(rcv_buf);
+	state = getsockopt(sock, SOL_SOCKET, SO_RCVBUF,		//为了验证，读取输入缓冲大小
+			(void*)&rcv_buf, &len);
+	
+	printf("Input buffer size: %d \n", rcv_buf);	
+	printf("Output buffer size: %d \n", snd_buf);
+	return 0;
+}
+
+void error_handling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+### SO_REUSEADDR
+
+先来看下面的服务端代码：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define TRUE 1
+#define FALSE 0
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int serv_sock, clnt_sock;
+	char message[30];
+	int option, str_len;
+	socklen_t optlen, clnt_adr_sz;
+	struct sockaddr_in serv_adr, clnt_adr;
+	if(argc != 2){
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	if(serv_sock == -1)
+		error_handling("socket() error");
+
+	/*
+	  optlen = sizeof(option);
+	  option = TRUE;
+	  setsockopt(serv_sock, SOL_SOCKET, SO_REUSEADDR,
+	  			(void*)&option, optlen);
+	*/
+
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)))
+		error_handling("bind() error");
+
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+	
+	clnt_adr_sz = sizeof(clnt_adr);
+	clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &clnt_adr_sz);
+	while((str_len = read(clnt_sock, message, sizeof(message))) != 0)
+	{
+		write(clnt_sock, message, str_len);
+		write(1, message, str_len);//第一个参数是1，代表标准输出
+	}
+	close(clnt_sock);
+	close(serv_sock);
+	return 0;
+}
+
+void error_handling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+客户端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<sys/socket.h>
+#include<arpa/inet.h>
+
+#define BUF_SIZE 1024
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+    int sock; 
+	char message[BUF_SIZE];
+    int str_len;
+    struct sockaddr_in serv_adr;
+
+	if(argc != 3){
+		printf("Usage : %s <IP> <port>\n", argv[0]);
+		exit(1);
+	}
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	if(sock == -1)
+		error_handling("socket() error");
+
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_adr.sin_port = htons(atoi(argv[2]));
+
+	if(connect(sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("connect() error");
+	else
+		puts("Connected........");
+
+	while(1)
+	{
+		fputs("Input message(Q to quit):", stdout);
+		fgets(message, BUF_SIZE, stdin);
+
+		if(!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
+			break;
+
+		write(sock, message, strlen(message));
+		str_len = read(sock, message, BUF_SIZE - 1);
+		message[str_len] = 0;
+		printf("Message from server: %s", message);
+	}
+	close(sock);
+	return 0;
+}
+
+void error_handling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+通过以下方式终止程序：
+
+> “在客户端控制台输入Q消息，或通过CTRL+C终止程序。”
+
+也就是说，让客户端先通知服务器端终止程序。在客户端控制台输入Q消息时调用close函数，向服务器端发送FIN消息，向服务器端发送FIN消息并经过四次握手过程。当然，输入CTRL+C时会向服务器传递FIN消息。强制终止程序时，由操作系统关闭文件及套接字，此过程相当于调用close函数，也会向服务器端传递FIN消息。
+
+> “但看不到什么特殊现象啊？”
+
+是的，通常都是由客户端先请求断开连接，所以不会发生特别的事情。重新运行服务器端也不成问题，但按照如下方式终止程序时则不同。
+
+> “服务器端和客户端已建立连接的状态下，向服务器端控制台输入CTRL+C，及强制关闭服务器端。”
+
+这主要模拟了服务器端向客户端发送FIN消息的情景。但如果以这种方式终止程序，那服务器端重新运行时将产生问题。如果用同一端口号重新运行服务器端，将输出“bind() error”消息，并且无法再次运行。但在这种情况下，再过大约3分钟即可重新运行服务器端。
+
+上述2中运行方式唯一的区别就是谁先传输FIN消息，但结果却迥然不同，原因何在呢？
+
+四次挥手我们知道先发送断开连接请求的主机最后会进入一段时间的Time-wait状态。假如服务端先发送断开连接请求（FIN消息），最后会进入Time-wait状态，此时服务端的套接字还没有关闭，端口号还在占用。因此用同一端口号重新运行服务器端，将输出“bind() error”消息。
+
+那为什么客户端先发送断开连接请求就没有问题呢，原因就是客户端socket的端口是自动分配的，某个端口被占用了，系统会分配其他的端口。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260312094708094.png" alt="image-20260312094708094" style="zoom:50%;" />
+
+| 到底为什么会有Time-wait状态呢？                              |
+| ------------------------------------------------------------ |
+| 上图中假设主机A向主机B传输ACK消息（SEQ 5001、ACK 7502）后立即消除套接字 。但最后这条ACK消息在传递途中丢失，未能传给主机B。这时会发生什么？主机B会认为之前自己发送的FIN消息（Seq 7501、ACK 5001）未能抵达主机A，继而试图重传。但此时主机A已是完全终止的状态，因此主机B永远无法收到主机A最后传来的ACK消息。相反，若主机A的套接字处在Time-wait状态，则会向主机B重传最后的ACK消息，主机B也可以正常终止。基于这些考虑，先传输FIN消息的主机应经过Time-wait过程。 |
+
+Time-wait状态也存在着一些缺点。如下图所示，主机A的四次挥手过程中，如果最后的数据丢失，则主机B会认为主机A未能收到自己发送的FIN消息，因此重传。这时，收到FIN消息的主机A将重启Time-wait计时器。因此，如果网络状况不理想，Time-wait状态将持续。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260312095516977.png" alt="image-20260312095516977" style="zoom:50%;" />
+
+解决方案就是在套接字的可选项中更改SO_REUSEADDR的状态。适当调整该参数，可将Time-wait状态下的套接字端口号重新分配给新的套接字。SO_REUSEADDR的默认值为0（假），这就意味着无法分配Time-wait状态下的套接字端口号。因此需要将这个值改成1（真）。
+
+只需把上述服务端程序的这几行注释去掉：
+
+![image-20260312100153150](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260312100153150.png)
+
+### TCP_NODELAY
+
+首先了解下Nagle算法：
+
+- **规则A**：如果发送缓冲区里的数据**足够拼凑成一个最大报文段（MSS，通常是1460字节）**，那么**不用等**，立刻发送！
+- **规则B**：如果缓冲区里的数据**不够一个 MSS（是个小包）**，并且网络上还有之前发出的包没有收到确认（ACK），那就**等**。等到前面的 ACK 回来了，或者缓冲区里的数据攒够一个 MSS 了，再发。
+
+![image-20260312101238693](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260312101238693.png)
+
+TCP套接字默认使用Nagle算法交换数据，因此最大限度地进行缓冲，直到收到ACK。为了发送字符串“Nagle”，将其传递到输出缓冲。这时头字符“N”之前没有其他数据（没有需接收的ACK），因此立即传输。之后开始等待字符“N”的ACK消息，等待过程中，剩下的“agle”填入输出缓冲。接下来，收到“N”的ACK消息后，将输出缓冲的“agle”转入一个数据包发送。也就是说，共需传递4个数据包（2SEQ + 2ACK）以传输1个字符串。
+
+假设字符“N”到“e”依序传到输出缓冲。此时的发送过程与ACK接收无关，因此数据到达输出缓冲后立即被发送出去。从图右侧可以看到，发送字符串“Nagle”时共需10个数据包。由此可知，不使用Nagle算法将对网络流量产生负面影响。即使只传输1个字节数据，其头信息都有可能是几十个字节。因此，为了提高网络传输效率，必须使用Nagle算法。
+
+| 上图是极端情况的演示                                         |
+| ------------------------------------------------------------ |
+| 在程序中将字符串传给输出缓冲时并不是逐字传递的，故发送字符串“Nagle”的实际情况并非如图9-3所示。但如果每隔一段时间再把构成字符串的字符传到输出缓冲（如果存在此类数据传递）的话，则有可能产生类似图9-3的情况。图9-3中就是隔一段时间向输出缓冲传递待发送数据的。（就是多次调用write()） |
+
+| 对Nagle算法的理解：                                          |
+| ------------------------------------------------------------ |
+| Nagle算法的作用：充分利用缓冲区的空间，来减少网络传输中的数据包，进而在一定情况下可以提高网络传输效率。Nagle算法在网络环境不稳定的条件下，可以考虑使用。如果**传输大文件数据**，则使用Nagle算法和不使用Nagle算法的差别不大，（大文件数据会立刻填满输出缓冲区，根据规则A，不会等待上一个数据的ACK消息，会直接传输。）而禁用Nagle算法也会在填满输出缓冲时传输数据包，而且无需等待ACK的前提下连续传输（比如大文件尾部有个小包，开启Nagle算法小包就会等待上一个传输的大包的ACK消息，传输不连续），因此可以大大提高传输速度。 |
+
+禁用Nagle算法：
+
+```cpp
+int opt_val = 1;
+setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void*)&opt_val, sizeof(opt_val));
+```
+
+另外，可以通过TCP_NODELAY值查看Nagle算法的设置状态：
+
+```cpp
+int opt_val;
+socklen_t opt_len;
+opt_len = sizeof(opt_val);
+getsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void*)&opt_val, &opt_len);
+```
+
+如果正在使用Nagle算法，opt_val变量中会保存0；如果已禁用Nagle算法，则保存1。
+
+## send和recv函数
+
+send：是一个系统调用函数，用来发送消息到一个套接字中
+
+`ssize_t send(int sockfd, const void *buf, size_t len, int flags);`
+
+send和write的唯一区别就是最后一个参数：flags的存在，当我们设置flags为0时，send和wirte是同等的。
+
+recv:
+
+`ssize_t recv(int sockfd, void* buf, size_t len, int flags);`
 
 
 
+| 可选项（option） | 含义                                                         | send | recv |
+| ---------------- | ------------------------------------------------------------ | ---- | ---- |
+| MSG_OOB          | 用于传输带外数据（Out-of-band data）                         | O    | O    |
+| MSG_PEEK         | 验证输入缓冲是否存在接收的数据                               |      | O    |
+| MSG_DONTROUTE    | 数据传输过程中不参照路由（Routing）表，在本地（Local）网络中寻找目的地 | O    |      |
+| MSG_DONTWAIT     | 调用I/O函数时不阻塞，用于使用非阻塞（Non_blocking）I/O       | O    | O    |
+| MSG_WAITALL      | 防止函数返回，直到接收全部请求的字节数                       |      | O    |
+
+### MSG_OOB 
+
+发送紧急消息：
+
+```cpp
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/socket.h>
+#include<arpa/inet.h>
+
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char * argv[]) 
+{
+	int sock;
+	struct sockaddr_in recv_adr;
+	if(argc != 3){
+		printf("Usage: %s <IP><port> \n", argv[0]);
+		exit(1);
+	}
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&recv_adr, 0, sizeof(recv_adr));
+	recv_adr.sin_family = AF_INET;
+	recv_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	recv_adr.sin_port = htons(atoi(argv[2]));
+
+	if(connect(sock, (struct sockaddr*)&recv_adr, sizeof(recv_adr)) == -1)
+		error_handling("connect() error");
+
+	write(sock, "123", strlen("123"));	
+	send(sock, "4", strlen("4"), MSG_OOB);	// 紧急传输数据。正常顺序应该是123、4、567、890，当紧急传输了4和890，由此可知接受顺序也将改变。
+	write(sock, "567", strlen("567"));
+	send(sock, "890", strlen("890"), MSG_OOB);
+	close(sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+接收紧急消息：
+
+收到MSG_OOB紧急消息时，操作系统将产生SIGURG信号，我们需要注册信号处理函数。
+
+`fcntl(recv_sock, F_SETOWN, getpid());`
+
+含义：将文件描述符recv_sock指向的套接字拥有者（F_SETOWN）改为把getpid函数返回值用作ID的进程。大白话就是让当前进程处理该fd指向的套接字引发的信号。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260319093001984.png" alt="image-20260319093001984" style="zoom:50%;" />
+
+```cpp
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<string.h>
+#include<signal.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<fcntl.h>
+
+#define BUF_SIZE 30	
+void error_handling(char * message);
+void urg_handler(int signo);
+
+int acpt_sock;
+int recv_sock;
+
+int main(int argc, char *argv[])
+{
+	struct sockaddr_in recv_adr, serv_adr;
+	int str_len, state;
+	socklen_t serv_adr_sz;
+	struct sigaction act;
+	char buf[BUF_SIZE];
+	if(argc != 2){
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	act.sa_handler = urg_handler;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	acpt_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&recv_adr, 0, sizeof(recv_adr));
+	recv_adr.sin_family = AF_INET;
+	recv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	recv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(acpt_sock, (struct sockaddr*)&recv_adr, sizeof(recv_adr)) == -1)
+		error_handling("bind() error");
+	listen(acpt_sock, 5);
+
+	serv_adr_sz = sizeof(serv_adr);
+	recv_sock = accept(acpt_sock, (struct sockaddr*)&serv_adr, &serv_adr_sz);
+
+	fcntl(recv_sock, F_SETOWN, getpid());	// 将单独说明。
+	state = sigaction(SIGURG, &act, 0);	//收到MSG_OOB紧急消息时，操作系统将产生SIGURG信号，并调用注册的信号处理函数。
+
+	while((str_len = recv(recv_sock, buf, sizeof(buf), 0)) != 0)
+	{
+		if(str_len == -1)
+			continue;
+		buf[str_len] = 0;
+		puts(buf);
+	}
+	close(recv_sock);
+	close(acpt_sock);
+	return 0;
+}
+
+void urg_handler(int signo)	// 信号处理函数内部调用了接收紧急消息recv函数。
+{
+	int str_len;
+	char buf[BUF_SIZE];
+	str_len = recv(recv_sock, buf, sizeof(buf) - 1, MSG_OOB);
+	buf[str_len] = 0;
+	printf("Urgent message: %s \n", buf);
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+通过MSG_OOB可选项传递数据时不会加快数据传输速度，而且通过信号处理函数urg_handler读取数据时也只能读1个字节。剩余数据只能通过未设置MSG_OOB可选项的普通输入函数读取。这是因为TCP不存在真正意义上的“带外数据”。
+
+真正意义上的Out-of-band需要通过单独的通信路径高速传输数据，但TCP不另外提供，只利用TCP的紧急模式（Urgent mode）进行传输。
+
+MSG_OOB的真正的意义在于督促数据接收对象尽快处理数据。这是紧急模式的全部内容，而且TCP“保持传输顺序”的传输特性依然成立。
+
+`send(sock, "890", strlen("890"), MSG_OOB);`
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260319094637097.png" alt="image-20260319094637097" style="zoom:50%;" />
+
+如果将缓冲最左端的位置视为偏移量为0，字符串0保存于偏移量为2的位置。另外，字符0右侧偏移量为3的位置存有紧急指针（Urgent Pointer）。紧急指针指向紧急消息的下一个位置（偏移量加1），同时向对方主机传递如下消息：“紧急指针指向的偏移量为3之前的部分就是紧急消息！”但是无法确认紧急消息是890还是90还是0。
+
+### MSG_PEEK
+
+MSG_PEEK和MSG_DONTWAIT结合，以非阻塞方式验证输入缓冲中有无数据。（如果有数据就会读取，但是不会把数据从缓冲中删除，也就是说继续调用recv还会得到该数据。如果没数据就会返回，不会阻塞等待。）
+
+### readv和writev函数
+
+通过writev函数可以将分散保存在多个缓冲中的数据一并发送，通过readv函数可以由多个缓冲分别接收。因此，适当使用这2个函数可以减少I/O函数的调用次数。
+
+```cpp
+#include<sys/uio.h>
+ssize_t writev(int filedes, const struct iovec * iov, int invcnt);
+```
+
+> 成功时返回发送的字节数，失败时返回-1。
+>
+> 参数1：filedes，表示数据传输对象的套接字文件描述符。但该函数并不只限于套接字，因此，可以像read函数一样向其传递文件或标准输出描述符。
+>
+> 参数2：iov，iovec结构体数组的地址值，结构体iovec中包含待发送的数据的位置和大小信息。
+>
+> 参数3：iovcnt，向第二个参数传递的数组长度。
+
+iovec结构体：
+
+```cpp
+struct iovec
+{
+    void* iov_base;//缓冲地址
+    size_t iov_len;//缓冲大小
+}
+```
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260319114029719.png" alt="image-20260319114029719" style="zoom:33%;" />
+
+上图中writev的第一个参数1是文件描述符，因此向控制台输出数据，ptr是存有待发送数据信息的iovec数组指针。第三个参数为2，因此，从ptr指向的地址开始，共浏览2个iovec结构体变量，发送这些指针指向的缓冲数据。接下来仔细观察图中的iovec结构体数组。ptr[0]（数组第一个元素）的iov_base指向以A开头的字符串，同时iov_len为3，故发送ABC。而ptr[1]（数组的第二个元素）的iov_base指向数字1，同时iov_len为4，故发送1234。
+
+`ssize_t readv(int filedes, const struct iovec* iov, int iovcnt)`
+
+> 成功时返回接收的字节数，失败时返回-1。
+>
+> 参数1：filedes，传递接收数据的文件（或套接字）描述符
+>
+> 参数2：包含数据保存位置和大小信息的iovec结构体数组的地址值。
+>
+> 参数3：iovcnt：第二个参数中数组的长度。
+
+注意：我要把filedes传输的数据存放到iov指向的内存中，第二个参数为什么是const？
+
+==第二个参数设置为const，代表不能通过iov指针来修改iovec结构体，也就是iov_base指向的内存地址、大小不变。不代表内存地址中的数据不可以改变。==
+
+```cpp
+#include<stdio.h>
+#include<sys/uio.h>
+#define BUF_SIZE 100
+
+int main(int argc, char * argv[])
+{
+	struct iovec vec[2];
+	char buf1[BUF_SIZE] = {0, };
+	char buf2[BUF_SIZE] = {0, };
+	int str_len;
+
+	vec[0].iov_base = buf1;
+	vec[0].iov_len = 5;	//设置第一个数据的保存位置和大小。接受数据的大小已指定为5，因此，无论buf1的大小是多少，最多仅能保存5个字节
+	vec[1].iov_base = buf2;	// vec[0]中注册的缓冲中保存为5个字节，剩余数据将保存到vec[1]中注册的缓冲。结构体iovec的成员iov_len中应写入接收的最大字节数。
+	vec[1].iov_len = BUF_SIZE;
+
+	str_len = readv(0, vec, 2);	// readv函数的第一个参数为0，因此从标准输入接收数据。
+	printf("Read bytes: %d \n", str_len);
+	printf("First message: %s \n", buf1);
+	printf("Second message; %s \n", buf2);
+	return 0;
+}
+```
+
+运行结果：
+
+```cpp
+i like TCP/IP socket programming!
+Read bytes: 34 
+First message: i lik 
+Second message; e TCP/IP socket programming!
+```
+
+writev和readv的好处：
+
+* 需要传输的数据分别位于不同缓冲（数组）时，需要多次调用write函数。此时可以通过1次writev函数调用替代操作，当然会提高效率。同样，需要将输入缓冲中的数据读入不同位置时，可以不必多次调用read函数，而是利用1次readv函数就能大大提高效率。
+* 减少数据包个数。比如服务端不采用Nagle算法，如果待发送的数据存在3个地方，那么需要调三次write，网络中可能会有三个数据包。但是用writev，会把这三个地方的数据合并在一起发送，网络中只会有一个数据包。
+
+## 多播和广播
+
+向用户发送多媒体信息，如果有1000个用户，需要分别向1000个用户发送消息。假如采用TCP，需要建立1000个TCP连接。采用UDP也需要发送1000次数据传输。针对这种向多个客户端发送相同消息的场景，可以采用多播技术。
+
+多播数据传输方式：
+
+- 针对特定的多播组，只发送一次数据。该组内的所有客户端都会接收数据。
+- 多播基于UDP完成，数据包格式和UDP数据包相同。不同点是，服务器向网络中传递1个多播数据包时，路由器会复制该数据包并传递到多个主机。因此多播需要通过路由器完成。
+
+多播和广播都可以同时给多个主机发送消息，都是基于UDP。但是多播可以跨网络 广播只能针对某个网络内的所有主机。
+
+广播分为直接广播和本地广播。直接广播的IP地址中除了网络地址外，其余主机地址全部设置为1。例如，希望向网络地址192.12.34中的所有主机传输数据时，可以将目的地址设为192.12.34.255。本地广播IP地址是255.255.255.255。也就是说192.32.24网络中的某个主机向目的地址为255.255.255.255发送数据，数据将传递到192.32.24网络中的所有主机。
+
+多播相关的编程：
+
+为了传递多播数据包，必须设置TTL。TTL是Time to Live的简写，是决定“数据包传递距离”的主要因素。TTL用整数表示，并且每经过1个路由器就减1。TTL变为0时，该数据包无法再被传递，只能销毁。因此TTL的值设置过大将影响网络流量。当然，设置过小也会无法传递到目标。
+
+TTL设置的方法：通过套接字可选项。设置TTL相关的协议层为`IPPROTO_IP`，可选项名为`IP_MULTICAST_TTL`
+
+```cpp
+int send_sock;
+int time_live = 64;
+...
+send_sock = socket(PF_INET, SOCK_DGRAM, 0);
+setsockopt(send_sock, IPPROTO_IP, IP_MULTICAST_TTL, (void *)&time_live, sizeof(time_live));
+```
+
+加入多播组也通过设置套接字选项完成：协议层为``IPPROTO_IP`选项名为`IP_ADD_MEMBERSHIP`。
+
+```cpp
+int recv_sock;
+struct ip_mreq join_adr;
+...
+recv_sock = socket(PF_INET, SOCK_DGRAM, 0);
+...
+join_adr.imr_multiaddr.s_addr = "多播组地址信息";
+join_adr.imr_interface.s_addr = "加入多播组的主机地址信息";
+setsockopt(recv_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void*)&join_adr, sizeof(join_adr));
+```
+
+```cpp
+struct ip_mreq
+{
+	struct in_addr imr_multiaddr;//加入的组IP地址
+	struct in_addr imr_interface;//加入该组的套接字所属主机的IP地址，
+}
+```
+
+多播中用「发送者 Sender」和「接收者 Receiver」替代服务器端和客户端。
+
+* Sender：向AAA组广播（Broadcasting）文件中保存的新闻信息。
+* Receiver：接收传递到AAA组的新闻信息。
+
+Sender程序：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define TTL 64
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char *argv[])
+{
+	int send_sock;
+	struct sockaddr_in mul_adr;
+	int time_live = TTL;
+	FILE * fp;
+	char buf[BUF_SIZE];
+	if(argc != 3){
+		printf("Usage: %s <GroupIP><PORT>\n", argv[0]);
+		exit(1);
+	}
+
+	send_sock = socket(PF_INET, SOCK_DGRAM, 0);
+	memset(&mul_adr, 0, sizeof(mul_adr));
+	mul_adr.sin_family = AF_INET;
+	mul_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	mul_adr.sin_port = htons(atoi(argv[2]));
+
+	setsockopt(send_sock, IPPROTO_IP,	
+		       	IP_MULTICAST_TTL, (void*)&time_live, sizeof(time_live)); // 指定套接字TTL信息，这是Sender中的必要过程。
+	if((fp = fopen("news.txt", "r")) == NULL)
+		error_handling("fopen() error");
+
+	while(!feof(fp))	/*Broadcasting*/
+	{
+		fgets(buf, BUF_SIZE, fp);
+		sendto(send_sock, buf, strlen(buf),
+			       	0, (struct sockaddr*)&mul_adr, sizeof(mul_adr));
+		sleep(2);	// sleep主要是为了给传输数据提供一定的时间间隔而添加的，没有其他特殊意义。
+	}
+	fclose(fp);
+	close(send_sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+Receiver程序：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int recv_sock;
+	int str_len;
+	char buf[BUF_SIZE];
+	struct sockaddr_in adr;
+	struct ip_mreq join_adr;
+	if(argc != 3){
+		printf("Usage: %s <GroupIP><PORT>\n", argv[0]);
+		exit(1);
+	}
+
+	recv_sock = socket(PF_INET, SOCK_DGRAM, 0);
+	memset(&adr, 0, sizeof(adr));
+	adr.sin_family = AF_INET;
+	adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	adr.sin_port = htons(atoi(argv[2]));
+
+	if(bind(recv_sock, (struct sockaddr*)&adr, sizeof(adr)) == -1)
+		error_handling("bind() error");
+
+	// 初始化结构体ip_mreg变量
+	join_adr.imr_multiaddr.s_addr = inet_addr(argv[1]);	//初始化多播地址。
+	join_adr.imr_interface.s_addr = htonl(INADDR_ANY);	//初始化待加入主机的IP地址。
+
+	setsockopt(recv_sock, IPPROTO_IP,	//利用套接字选项IP_ADD_MEMBERSHIP加入多播组。
+		       	IP_ADD_MEMBERSHIP, (void*)&join_adr, sizeof(join_adr));
+	while(1)
+	{
+		str_len = recvfrom(recv_sock, buf, BUF_SIZE - 1, 0, NULL, 0);//通过调用recvfrom函数接收多播数据。如果不需要知道传输数据的主机地址信息，可以向recvfrom函数的第五个和第六个参数分别传递NULL和0。
+		if(str_len < 0)
+			break;
+		buf[str_len] = 0;
+		fputs(buf, stdout);
+	}
+	close(recv_sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321110330480.png" alt="image-20260321110330480" style="zoom:50%;" />
+
+==前面的adr不就绑定过IP和端口吗，按理说我只需要将该主机加入这个多播组，过来的多播信号就会自动进入绑定的IP和端口。为什么要多此一举==
+
+**join_adr.imr_interface 的根本作用就是：**
+告诉操作系统：“请从**这张具体的网卡**把 IGMP 加入信号发出去，并且以后只让这张网卡去监听这个多播频道的硬件 MAC 地址！”
+
+![image-20260321110544935](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321110544935.png)
+
+bind和imr_interface中设置的IP
+
+广播相关的编程：
+
+```cpp
+int send_sock;
+int bcast = 1;
+...
+send_sock = socket(PF_INET, SOCK_DGRAM,0);
+...
+setsockopt(send_sock, SOL_SOCKET, SO_BROADCAST,(void*)&bcast, sizeof(bcast));
+```
+
+调用setsockopt函数，将`SO_BROADCAST`选项设置为bcast变量中的值1。意味着可以进行数据广播。
+
+Sender程序：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define BUF_SIZE 30
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int send_sock;
+	struct sockaddr_in broad_adr;
+	FILE *fp;
+	char buf[BUF_SIZE];
+    int so_brd = 1;
+    if(argc != 3){
+		printf("Usage: %s <Broadcast IP><PORT>\n", argv[0]);
+		exit(1);
+	}
+
+	send_sock = socket(PF_INET, SOCK_DGRAM, 0);
+	memset(&broad_adr, 0, sizeof(broad_adr));
+       	broad_adr.sin_family = AF_INET;
+       	broad_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	broad_adr.sin_port = htons(atoi(argv[2]));
+
+	setsockopt(send_sock, SOL_SOCKET,
+		       	SO_BROADCAST, (void*)&so_brd, sizeof(so_brd));
+	if((fp = fopen("news.txt", "r")) == NULL)
+		error_handling("fopen() error");
+
+	while(!feof(fp))
+	{
+		fgets(buf, BUF_SIZE, fp);
+		sendto(send_sock, buf, strlen(buf),
+				0, (struct sockaddr*)&broad_adr, sizeof(broad_adr));
+		sleep(2);
+	}
+	close(send_sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+receiver程序：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#define BUF_SIZE 30
+void error_handling(char* message);
+
+int main(int argc, char * argv[])
+{
+	int recv_sock;
+	struct sockaddr_in adr;
+	int str_len;
+	char buf[BUF_SIZE];
+	if(argc != 2){
+		printf("Usage: %s <PORT>\n", argv[0]);
+		exit(1);
+	}
+
+	recv_sock = socket(PF_INET, SOCK_DGRAM, 0);
+	memset(&adr, 0, sizeof(adr));
+	adr.sin_family = AF_INET;
+	adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(recv_sock, (struct sockaddr*)&adr, sizeof(adr)) == -1)
+		error_handling("bind() error");
+
+	while(1)
+	{
+		str_len = recvfrom(recv_sock, buf, BUF_SIZE - 1, 0, NULL, 0);
+		if(str_len < 0)
+		 	break;
+		buf[str_len] = 0;
+		fputs(buf, stdout);
+	}
+	close(recv_sock);
+	return 0;
+}
+
+void error_handling(char* message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
+## 标准IO函数
+
+标准IO函数指的是C语言的标准IO函数。
+
+先来学习C语言中的文件操作：fopen、feof、fgetc、fputs、fgets
+
+fopen打开文件，成功返回一个FILE类型的指针。
+
+```cpp
+FILE *fp = fopen("data.txt", "r");
+//第二个参数是打开模式：
+//"r"：只读（文件必须存在）。
+//"w"：只写（文件存在则清空，不存在则创建）。
+//"a"：追加（在文件末尾接着写）。
+```
+
+fgetc读取一个字符。从已经打开的文件中，读取**一个字符**。读完之后，文件内部的光标会自动往后移动一格。注意返回值是int，而不是char。
+
+```cpp
+int ch = fgetc(fp);
+//返回读到的字符（会被转成 int 类型）。如果读到了文件的最末尾，或者读取发生了错误，它会返回一个特殊的宏定义常量：EOF (End Of File，通常它的值是 -1)。
+```
+
+fgets读取一个字符串
+
+`char *fgets(char *buf, int n, FILE *stream);` n是buf的最大长度。buf是字符数组。
+
+停止读取的条件：
+
+* 读到换行符。**它会把这个** **\n** **也原封不动地装进你的** **str** **数组里！**
+* 读到EOF
+* 已经读了n-1个字符。留下的最后 1 个位置，用来放字符串结束标记 \0
+
+**读取成功时，它返回你传入的那个字符数组的指针（地址）；如果读取失败或读到了文件/网络末尾，它返回** **NULL**
+
+fputs把一个字符串写到文件中。
+
+```cpp
+char *str = "Hello World!";
+fputs(str, fp);
+//与 C 语言里的 puts() 函数不同，fputs 不会自动在字符串末尾帮你加换行符 \n
+//如果成功，返回一个非负数；如果失败，返回 EOF。
+```
+
+feof判断是否到了文件末尾，feof(fp)返回值为非0值则说明到了文件末尾。
+
+错误用法：不要用它来作为 while (!feof(fp)) 的循环判断条件，因为这往往会导致你把最后一个字符多读（多输出）一遍！
+
+demo：
+
+```cpp
+#include <stdio.h>
+//data.txt 的文件，里面只有三个字母：ABC。
+int main() {
+    FILE *fp = fopen("data.txt", "r");
+    if (fp == NULL) return 1;
+
+    char ch;
+    // 错误用法：直接用 feof 作为循环条件
+    while (!feof(fp)) {
+        fscanf(fp, "%c", &ch); // 尝试读取一个字符放入 ch
+        printf("%c", ch);      // 打印这个字符
+    }
+
+    fclose(fp);
+    return 0;
+} 
+//输出：ABCC
+```
+
+原因：只要上一次读取动作成功拿到了数据，feof就返回0。所以此时虽然指针指向最后一个字符的后面一位，但 `feof()` 依然判定为没到结尾。（feof **只有在你的读取函数（比如 fgetc）试图越过文件末尾去读数据，并且失败之后**，它才会返回真（非 0 值）。）
+
+正确用法：
+
+```cpp
+int ch;
+// 先尝试读，把读到的结果赋值给 ch，然后马上判断是不是 EOF
+while ((ch = fgetc(fp)) != EOF) { 
+    putchar(ch); // 正常输出字符
+}
+
+// 循环结束后，再用 feof 确认一下是不是真的因为到了文件末尾才退出的循环
+if (feof(fp)) {
+    printf("\n文件正常读取完毕。\n");
+}
+```
+
+
+
+标准IO函数的两个优点：
+
+* 具有良好的移植性（跨平台）
+* 可以利用缓冲提高性能
+
+创建套接字时，操作系统将生成用于I/O的缓冲。此缓冲在执行TCP协议时发挥着非常重要的作用。此时若使用标准I/O函数，将得到额外的另一缓冲的支持。
+
+![image-20260321154149865](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321154149865.png)
+
+标准IO函数缓冲和套接字缓冲的区别：套接字中的缓冲主要是为了实现TCP协议而设立的。例如，TCP传输中丢失数据时将再次传递，而再次发送数据则意味着在某地保存了数据。存在什么地方呢？套接字的输出缓冲。相反，使用标准I/O函数缓冲的主要目的是为了提高性能。
+
+> 为什么可以提高性能，实际上在Linux系统编程那里我们就说过这个问题，也就是所谓的预读入缓输出。
+>
+> ![image-20260321154816965](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321154816965.png)
+
+
+
+标准IO函数的缺点：
+
+* 不容易进行双向通信
+* 有可能频繁调用fflush
+* 需要以FILE指针的形式返回文件描述符
+
+==如何用标准IO函数进行socket网络通信==：利用fdopen函数将socket的文件描述符转换成FILE指针类型，这样就可以向操作本地文件那样操作socket。
+
+`FILE* fdopen(int fildes, const char* mode)`
+
+* 成功返回FILE指针 失败返回NULL。
 
 ## 实现并发服务器
 
+前面实现的回声服务器一次只能给一个客户端提供服务，提供完服务才可以给下一个提供服务。如何实现同时给多个客户端提供服务？（这里的同时是宏观上的同时。）
+
 ### 多进程
 
-多进程：是为每个客户端分配一个进程来处理请求
+多进程：是为每个客户端分配一个子进程来处理请求
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Gemini_Generated_Image_j0gmjxj0gmjxj0gm.png" alt="Gemini_Generated_Image_j0gmjxj0gmjxj0gm" style="zoom: 25%;" />
+
+* 父进程通过调用accept函数受理连接请求
+* fork出子进程，将accept函数返回的套接字文件描述符传递给子进程
+* 子进程为客户端提供服务
+
+调用fork函数时子进程会复制父进程的所有资源，但是不会复制套接字。（套接字属于操作系统的资源，fork不会复制，管道也属于操作系统也不会复制，只会复制套接字和管道的文件描述符。）如果复制套接字的话，同一个端口就绑定了多个套接字这就不合理了。只会复制套接字的文件描述符。 下图的服务端套接字就是lfd，客户端连接套接字时cfd。
+
+、<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260317093200180.png" alt="image-20260317093200180" style="zoom:50%;" />
+
+1个套接字存在2个文件描述符时，只有2个文件描述符都终止（销毁）后，才能销毁套接字。如果维持图中的状态，即使子进程销毁了与客户端连接的套接字文件描述符，也无法销毁套接字（服务器套接字同样如此）。因此调用fork函数后，要将无关紧要的套接字文件描述符关掉。
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<signal.h>
+#include<sys/wait.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define BUF_SIZE 30
+void error_handling(char * message);
+void read_childproc(int sig);
+
+int main(int argc, char * argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+
+	pid_t pid;
+	struct sigaction act;
+	socklen_t adr_sz;
+	int str_len, state;
+	char buf[BUF_SIZE];
+	if(argc != 2){
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	act.sa_handler = read_childproc;			//------从29----
+	sigemptyset(&act.sa_mask);					// 为防止产生僵尸进程
+	act.sa_flags = 0;							// 而编写的代码
+	state = sigaction(SIGCHLD, &act, 0);		//------到32----
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("bind() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen error");
+
+	while(1)
+	{
+		adr_sz = sizeof(clnt_adr);
+		clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+		if(clnt_sock == -1)
+			continue;
+		else
+			puts("new client connected...");
+		pid = fork();	// 执行后，父进程和子进程分别带有一个第47行生成的套接字描述符（受理客户端连接请求时创建的）文件描述符。
+		if(pid == -1)
+		{
+			close(clnt_sock);
+			continue;
+		}
+		if(pid == 0)	//子进程运行的区域。此部分向客户端提供回声服务。
+		{
+			close(serv_sock); //关闭第33行创建的服务器套接字，这是因为服务器端套接字文件描述符同样也传递到子进程。
+			while((str_len = read(clnt_sock, buf, BUF_SIZE)) != 0)
+				write(clnt_sock, buf, str_len);
+
+			close(clnt_sock);
+			puts("client disconnected...");
+			return 0;
+		}
+		else
+			close(clnt_sock);
+	}
+	close(serv_sock);
+	return 0;
+}			  
+
+void read_childproc(int sig)
+{
+	pid_t pid;
+	int status;
+	pid = waitpid(-1, &status, WNOHANG);
+	printf("removed proc id: %d \n", pid);
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
 
 ```c
 #include <stdio.h>
@@ -1643,11 +2794,226 @@ int childWork(int cfd)
 }
 ```
 
+拓展：分割IO的回声客户端。
+
+之前客户端传输数据后，服务端回传数据，回传完毕后客户端才可以发下一个数据。
+
+分割IO：父进程进行读，子进程进行写。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260317094352266.png" alt="image-20260317094352266" style="zoom: 33%;" />
+
+以前的回声客户端是左图，分割IO后变成了右图，客户端不需要发完一次数据，还可以接着发，不需要等收到服务端发来的数据才发下一次数据。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260317094958249.png" alt="image-20260317094958249" style="zoom:33%;" />
+
+
+
+分割IO的客户端代码：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define BUF_SIZE 30
+void error_handling(char * message);
+void read_routine(int sock, char * buf);
+void write_routine(int sock, char * buf);
+
+int main(int argc, char * argv[])
+{
+	int sock;
+	pid_t pid;
+	char buf[BUF_SIZE];
+	struct sockaddr_in serv_adr;
+	if(argc != 3){
+		printf("Usage: %s <IP><port>\n", argv[0]);
+		exit(1);
+	}
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_adr.sin_port = htons(atoi(argv[2]));
+
+	if(connect(sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("connect() error");
+
+	pid = fork();
+	if(pid == 0)
+		write_routine(sock, buf);
+	else
+		read_routine(sock, buf);
+
+	close(sock);
+	return 0;
+}
+
+void read_routine(int sock, char * buf)
+{
+	while(1)
+	{
+		int str_len = read(sock, buf, BUF_SIZE);
+		if(str_len == 0)
+			return;
+
+		buf[str_len] = 0;
+		printf("Message from server: %s", buf);
+	}
+}
+void write_routine(int sock, char * buf)
+{
+	while(1)
+	{
+		fgets(buf, BUF_SIZE, stdin);
+		if(!strcmp(buf, "q\n") || !strcmp(buf, "Q\n"))
+		{
+			shutdown(sock, SHUT_WR);	// 调用shutdown函数向服务器端传递EOF。
+			return;						// 执行第63行的return语句后，可以调用39行的close函数传递EOF。但现在已通过第33行的fork函数调用复制了文件描述符，
+		}								// 此时无法通过1次close函数调用传递EOF，因此需要通过shutdown调用另外传递。
+		write(sock, buf, strlen(buf));
+	}
+}
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
+运用管道实现如下功能：
+
+> 将回声客户端传输的字符串按序保存到文件中。我希望将该任务委托给另外的进程。换言之，另行创建进程，从向客户端提供服务的进程读取字符串信息。当然，该过程中需要创建用于接收数据的管道。
+
+
+
+结构图：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260317112708863.png" alt="image-20260317112708863" style="zoom:50%;" />
+
+
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<signal.h>
+#include<sys/wait.h>
+#define BUF_SIZE 100
+void error_handling(char * message);
+void read_childproc(int sig);
+
+int main(int argc, char * argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+	int fds[2];
+	
+	pid_t pid;
+	struct sigaction act;
+	socklen_t adr_sz;
+	int str_len, state;
+	char buf[BUF_SIZE];
+	if(argc != 2){
+		printf("Usage: %s <port> \n", argv[0]);
+		exit(1);
+	}
+
+	act.sa_handler = read_childproc;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	state = sigaction(SIGCHLD, &act, 0);
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("bind() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	pipe(fds);	//创建管道
+	pid = fork();	//创建负责保存文件的子进程
+	if(pid == 0)
+	{
+		FILE * fp = fopen("echomsg.txt", "wt");
+		char msgbuf[BUF_SIZE];
+		int i, len;
+		for(i = 0; i < 10; i++)
+		{
+			len = read(fds[0], msgbuf, BUF_SIZE);
+			fwrite((void*)msgbuf, 1, len, fp); //第二个参数表示基本单位是1个字节，第三个参数是要写多少个这样的基本单位。
+		}
+		fclose(fp);
+		return 0;
+	}
+
+	while(1)
+	{
+		adr_sz = sizeof(clnt_adr);
+		clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+		if(clnt_sock == -1)
+			continue;
+		else
+			puts("new client connected...");
+
+		pid = fork(); //创建的所有子进程都拥有第45行创建的管道文件描述符。
+		if(pid == 0)
+		{
+			close(serv_sock);
+			while((str_len = read(clnt_sock, buf, BUF_SIZE)) != 0)
+			{
+				write(clnt_sock, buf, str_len);	// 向客户端提供服务
+				write(fds[1], buf, str_len);	// 传输给保存文件的进程
+			}
+
+			close(clnt_sock);
+			puts("client disconnected...");
+			return 0;
+		}
+		else
+			close(clnt_sock);
+	}
+	close(serv_sock);
+	return 0;
+}
+
+void read_childproc(int sig)
+{
+	pid_t pid;
+	int status;
+	pid = waitpid(-1, &status, WNOHANG);
+	printf("remove proc id: %d \n", pid);
+
+}
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
 ### 多线程
 
 多线程：当服务器与客户端 TCP 完成连接后，通过 pthread_create() 函数创建线程，然后将「已连接 Socket」的文件描述符传递给线程函数，接着在线程里和客户端进行通信。
 
-<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Gemini_Generated_Image_gwkxdkgwkxdkgwkx.png" alt="Gemini_Generated_Image_gwkxdkgwkxdkgwkx" style="zoom: 33%;" />
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Gemini_Generated_Image_gwkxdkgwkxdkgwkx.png" alt="Gemini_Generated_Image_gwkxdkgwkxdkgwkx" style="zoom: 50%;" />
 
 ```c
 #include <stdio.h>
@@ -1780,9 +3146,255 @@ int main()
 
 ### I/O多路复用
 
+让一个线程/进程管理多个网络连接，使得服务器能够高效的处理大量的并发连接而不需要为每个连接都创建一个线程来管理。
+
+> 如何理解并发连接：宏观的并发就是在一个时间段内发生了很多事情，并发连接就是在短时间内有很多连接到达服务端。
+
+![image-20260311164635527](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311164635527.png)
+
 #### select
 
-让内核去监听客户端连接(lfd)，当有客户端进行连接时 它会让server去调用accept(当有连接时才去立即调用，而不是一直阻塞等待)得到一个用于通信的cfd，最后让内核监管着lfd和所有cfd。
+select可以使一个进程维护多个文件描述符。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260318144952181.png" alt="image-20260318144952181" style="zoom:50%;" />
+
+使用fd_set数组将要监视的fd集中在一起。fd_set本质上也是个位图。把需要监视的fd对应的位设置为1。
+
+如何设置：因为是位图，所以直接操作该变量会很繁琐，需要用宏来进行操作。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260318145337329.png" alt="image-20260318145337329" style="zoom:33%;" />
+
+
+
+- `FD_ZERO(fd_set* fdset)`，将`fd_set`变量的所有位初始化位0。
+- `FD_SET(int fd, fd_set * fdest)`，在参数`fd_set`指向的变量中注册文件描述符fd的信息
+- `FD_CLR(int fd, fd_set * fdset)`，从参数`fd_set`指向的变量中清除文件描述符fd的信息。
+- `FD_ISSET(int fd, fd_set * fdset)`，若参数`fd_set`指向的变量中包含文件描述符fd的信息，则返回“真”。
+
+select函数：
+
+```cpp
+#include<sys/select.h>
+#include<sys/time.h>
+int select(
+int maxfd, fd_set * readset, fd_set * writeset, fd_set * exceptset, const struct timeval * timeout);
+```
+
+> 参数1：maxfd，监视对象文件描述符数量。(最大的文件描述符值+1)
+>
+> 参数2：readset，将所有关注 “是否存在带读取数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
+>
+> 参数3：writeset，将所有关注 “是否可传输无阻塞数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
+>
+> 参数4：exceptset，将所有关注 “是否发生异常” 的文件描述符注册到fd_set型变量，并传递其地址值。
+>
+> 参数5：timeout，调用select函数后，为防止陷入无限阻塞的状态，传递超时信息。
+>
+> 返回值：发生错误时返回-1，超时返回时返回0。因发生关注的事件返回时，返回大于0的值，该值是发生事件的文件描述符数。
+
+第五个参数我们之前学过：
+
+```cpp
+struct timeval
+{
+	long tv_sec;	//seconds
+	long tv_usec;	//microseconds
+}
+```
+
+函数调用后，如何知道哪些文件描述符发生了变化。（监视的文件描述符发生了相应的监视事件。）
+
+发生变化的文件描述符对应位是1，所以可以用宏FD_ISSET来判断哪些发生了变化。
+
+select示例：
+
+```cpp
+#include<stdio.h>
+#include<unistd.h>
+#include<sys/time.h>
+#include<sys/select.h>
+#define BUF_SIZE 30
+
+int main(int argc, char * argv[])
+{
+	fd_set reads, temps;	// temps为后面提供初始化作用，用于重复初始化reads注册过的监视项。
+	int result, str_len;
+	char buf[BUF_SIZE];
+	struct timeval timeout;
+
+	FD_ZERO(&reads);	// 初始化fd_set变量
+	FD_SET(0, &reads);  // 0是标准输入的文件描述符	//将文件描述符0对应的位设置为1。换言之，需要监视标准输入的变化。
+
+	/*
+	 timeout.tv_sec = 5;		
+	 timeout.tv_usec = 5000;
+	*/	//这是为了设置select函数的超时而添加的。但不能在此时设置超时。
+		//因为每次调用select函数后，结构体timeval的成员tv_sec和tv_usec的值将被替换为超时前剩余时间。
+		//因此，调用select函数前，每次都需要初始化timeval结构体变量。
+
+	while(1)
+	{
+		temps = reads;	//为了避免上一次循环监测的影响，每次循环的开始都要将fd_set变量的所有位清空，并注册标准输入的文件描述符0，为了记住初始值的设置，必须经过这种复制过程。这是使用select函数的通用方法。
+		timeout.tv_sec = 5;		// 将初始化timeval结构体的代码插入循环后，每次调用select函数前都会初始化新值。
+		timeout.tv_usec = 0;
+		result = select(1, &temps, 0, 0, &timeout); //调用select函数。如果有控制台输入数据，则返回大于0的整数；如果没有输入数据而引发超时，则返回0。
+		if(result == -1)
+		{
+			puts("select() error!");
+			break;
+		}
+		else if(result == 0)
+		{
+			puts("Time-out!");
+		}
+		else
+		{
+			if(FD_ISSET(0, &temps))		//select函数返回大于0的值时运行的区域。验证发生变化的文件描述符是否为标准输入。若是，则从标准输入读取数据并向控制台输出。
+			{
+				str_len = read(0, buf, BUF_SIZE);
+				buf[str_len] = 0;
+				printf("message from console: %s", buf);
+			}
+		}
+	}
+	return 0;
+}
+```
+
+
+
+使用select函数实现IO多路复用
+
+思路：让内核去监听客户端连接(lfd)，当有客户端进行连接时 它会让server去调用accept(当有连接时才去立即调用，而不是一直阻塞等待)得到一个用于通信的cfd，最后让内核监管着lfd和所有cfd。
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<sys/time.h>
+#include<sys/select.h>
+
+
+
+#define BUF_SIZE 100
+void error_handling(char *buf);
+
+int main(int argc, char * argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+	struct timeval timeout;
+	fd_set reads, cpy_reads;
+
+	socklen_t adr_sz;
+	int fd_max, str_len, fd_num, i;
+	char buf[BUF_SIZE];
+	if(argc != 2)
+	{
+		printf("Usage: %s <port> \n", argv[0]);
+		exit(1);
+	}
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("listen() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	FD_ZERO(&reads);
+	FD_SET(serv_sock, &reads);	//向要传到select函数第二个参数的fd_set变量reads注册服务器端套接字。
+								//这样，接收数据情况的监视对象就包含了服务器端套接字。
+								//客户端的连接请求同样通过传输数据完成。
+								//因此，服务器端套接字中有接受的数据，就意味着有新的连接请求。
+	fd_max = serv_sock;
+
+	while(1)
+	{
+		cpy_reads = reads;
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 5000;
+
+		if((fd_num = select(fd_max + 1, &cpy_reads, 0, 0, &timeout)) == -1)	//在while无限循环中调用select函数。select函数的第三和第四个参数为空。只需根据监视目的传递必要的参数。
+			break;
+		if(fd_num == 0)
+			continue;
+
+		for(i = 0; i < fd_max + 1; i++)	
+		{
+			if(FD_ISSET(i, &cpy_reads))	// 查找发生状态变化的文件描述符
+			{
+				if(i == serv_sock)	//验证服务器端套接字是否有变化，如果是服务器端套接字的变化，将受理连接请求。
+				{
+					adr_sz = sizeof(clnt_adr);
+					clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+					FD_SET(clnt_sock, &reads);	// 在fd_set变量reads中注册了与客户端连接的套接字文件描述符。
+					if(fd_max < clnt_sock)
+						fd_max = clnt_sock;
+					printf("Connected client: %d \n", clnt_sock);
+				}
+				else	//发生变化的套接字并非服务器端套接字时，即有要接收的数据时执行else语句。
+				{
+					str_len = read(i, buf, BUF_SIZE);
+					if(str_len == 0)	//接收的数据为EOF时需要关闭套接字，并从reads中删除相应信息。
+					{
+						FD_CLR(i, &reads);
+						close(i);
+						printf("closed client: %d \n", i);
+					}
+					else	//接收的数据为字符串时，执行回声服务。
+					{
+						write(i, buf, str_len);
+					}
+				}
+			}
+		}
+	}
+	close(serv_sock);
+	return 0;
+}
+
+void error_handling(char * buf)
+{
+	fputs(buf, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
+小林coding：
+
+> select 实现多路复用的方式是，将已连接的 Socket 都放到一个文件描述符集合，然后调用 select 函数将文件描述符集合拷贝到内核里，让内核来检查是否有网络事件产生，检查的方式很粗暴，就是通过遍历文件描述符集合的方式，当检查到有事件产生后，将此Socket标记为可读或可写，接着再把整个文件描述符集合拷贝回用户态里，然后用户态还需要再通过遍历的方法找到可读或可与的Socket，然后再对其处理。
+>
+> 所以，对于select 这种方式，需要进行2次遍历」文件描述符集合，一次是在内核态里，一个次是在用户态里，而且还会发生2次「拷贝」文件描述符集合，先从用户空间传入内核空间，由内核修改后，再传出到用户空间中。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #### poll
 
@@ -1804,5 +3416,9 @@ int main()
 * 多线程
 * I/O多路复用
 
+## 一些误区
 
+![image-20260321163037565](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321163037565.png)
+
+![image-20260321163057511](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321163057511.png)
 

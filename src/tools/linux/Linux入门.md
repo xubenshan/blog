@@ -150,7 +150,7 @@ sudo chmod +x Snipaste-2.10.8-x86_64.AppImage
 
 ```
 
-## 常用命令
+## 常用shell命令
 
 ```shell
 

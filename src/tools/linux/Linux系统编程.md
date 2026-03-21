@@ -843,7 +843,7 @@ tryagain:
 }
 ```
 
-
+> 在后续的网络编程中，我们还会继续用到fcntl函数。
 
 **lseek函数：**
 
@@ -1484,15 +1484,21 @@ exit()调用终止函数的顺序与登记时相反。 进程退出前的收尾�
 函数原型：`pid_t fork(void)` 
 
 * `pid_t`表示进程ID，但是为了表示-1，他是有符号整型。0不是有效进程ID，init最小，为1。
-* 失败返回-1；子进程返回0，父进程返回子进程的PID。
-* 子进程只执行fork后的语句。
+* 失败返回-1；子进程的fork函数返回0，父进程返回子进程的PID。
+* 子进程只执行fork函数返回后的语句。
 * 注意fork之后父进程先执行还是子进程先执行是不确定的，取决于内核使用的调度算法。
 * 子进程获得了父进程数据空间、堆和栈的副本（**注意：子进程拥有的是副本，不是和父进程共享**）。
 * 我们在shell中每输入一个命令，shell会调用fork函数，让子进程去执行命令。
 
 ![image-20260122103238163](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260122103238163.png)
 
-fork的两种用法：
+可以通过下面这张图仔细体会下fork函数：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260313173139677.png" alt="image-20260313173139677" style="zoom:50%;" />
+
+
+
+**fork的两种用法：**
 
 1）父进程复制自己，然后，父进程和子进程分别执行不同的代码。这种用法在网络服务程序中很常见，父进程等待客户端的连接请求，当请求到达时，父进程调用fork()，让子进程处理些请求，而父进程则继续等待下一个连接请求。
 
@@ -1663,6 +1669,36 @@ system()函数的返回值比较麻烦。
 
 僵尸进程有什么危害？内核为每个子进程保留了一个数据结构，包括进程编号、终止状态、使用CPU时间等。父进程如果处理了子进程退出的信息，内核就会释放这个数据结构，父进程如果没有处理子进程退出的信息，内核就不会释放这个数据结构，子进程的进程编号将一直被占用。系统可用的进程编号是有限的，如果产生了大量的僵尸进程，将因为没有可用的进程编号而导致系统不能产生新的进程。
 
+产生僵尸进程的代码：
+
+```c
+#include<stdio.h>
+#include<unistd.h>
+
+int main(int argc, char *argv[])
+{
+	pid_t pid = fork();
+
+	if(pid == 0) // if Child process
+	{
+		puts("Hi, I am a child process");
+	}
+	else
+	{
+		printf("Child Process ID: %d\n", pid);
+		sleep(30);
+	}
+
+	if(pid == 0)
+		puts("End child process");
+	else
+		puts("End parent process");
+	return 0;
+}
+```
+
+> 等待30秒后父进程死亡，为什么僵尸进程也没有了。因为父进程死后，子进程相当于变成了孤儿，系统的init进程就会接管孤儿僵尸进程，调用wait函数把僵尸进程清理掉。
+
 如何查看僵尸进程：僵尸进程在系统中通常标记为 **Z** (Zombie) 或者显示为[defunct]。
 
 使用top命令，可以看到系统的僵尸进程总数。
@@ -1673,7 +1709,7 @@ system()函数的返回值比较麻烦。
 
 1）子进程退出的时候，内核会向父进程发头SIGCHLD信号，如果父进程用signal(SIGCHLD,SIG_IGN)通知内核，表示自己对子进程的退出不感兴趣，那么子进程退出后会立即释放数据结构。
 
-2）父进程通过wait()/waitpid()等函数等待子进程结束，在子进程退出之前，父进程将被阻塞
+2）父进程通过wait()/waitpid()等函数等待子进程结束，在子进程退出之前，父进程将被阻塞。waitpid可以不阻塞。
 
 ```cpp
 pid_t wait(int *status);
@@ -1702,7 +1738,7 @@ pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
 
 成功返回子进程PID，失败返回-1。
 
-把得到的int类型的status传递给宏函数，可以得到子进程退出的信息：
+把得到的int类型的status（这里的status是int，和wait的参数status不是一回事。）传递给宏函数，可以得到子进程退出的信息：
 
 宏函数：（看子进程如何死的）
 
@@ -1716,6 +1752,10 @@ pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
 
 `wpid = wait(NULL)` 不关心子进程结束原因
 
+调用wait函数时，如果没有已终止的子进程，那么程序将阻塞（Blocking）直到有子进程终止，因此需谨慎调用该函数。
+
+下面介绍的这个函数不会引起程序的阻塞——waitpid函数
+
 #### waitpid函数
 
 `pid_t waitpid(pid_t pid, int *status, int options);`
@@ -1724,7 +1764,7 @@ pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
 * option和status可以为NULL
 * option为0表示阻塞回收
 
-返回值：返回成功回收的子进程Pid，返回值为0表明参数3指定了options为WNOHANG（非阻塞 也就是说调用该函数时子进程没有结束，函数会直接返回0，不会阻塞等待。），并且子进程没有结束。失败返回-1
+返回值：返回成功回收的子进程Pid，返回值为0表明参数3指定了options为WNOHANG(记忆：WNOHANG ，w no hang 不悬挂，即不进入阻塞状态)（非阻塞 也就是说调用该函数时子进程没有结束，函数会直接返回0，不会阻塞等待。），并且子进程没有结束。失败返回-1
 
 一次wait/waitpid函数调用，只能回收一个子进程。
 
@@ -1955,6 +1995,8 @@ int main(void) {
 
 ### 进程间通信（IPC）
 
+进程间通信：两个进程可以交换数据。需要有一个都可以访问的内存空间。
+
 进程间通信的本质：内核空间的一块缓冲区（buffer），大小一般是4096个字节。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260125184137684.png" alt="image-20260125184137684" style="zoom:33%;" />
@@ -2001,7 +2043,7 @@ fd[0]读端 fd[1]写端
 
 > 程序输出结果：![image-20260125222922230](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260125222922230.png)
 >
-> 父进程先执行完了，bash抢占终端，所以会看到先出现$提示符，再出现子进程结果。
+> 父进程先执行完了，bash抢占终端，所以会看到先出现命令提示符，再出现子进程结果。
 >
 > 加sleep也没有用，因为当子进程读管道的时候没有读到数据，就会阻塞到那里，直到父进程写入了数据。也就是说父进程一定比子进程先执行。
 >
@@ -2680,7 +2722,9 @@ public:
 
 ### 基本概念
 
-信号（signal）是软件中断，是进程之间相互传递消息的一种方法，用于通知进程发生了事件，但是，不能给进程传递任何数据。
+信号（signal）是软件中断，
+
+是进程之间相互传递消息的一种方法，用于通知进程发生了事件，但是，不能给进程传递任何数据。（==在特定事件发生时由操作系统向进程发送的消息）==
 
 给B发送信号，B收到信号之前执行自己的代码，收到信号后，不管执行到程序的什么位置，都要暂停运行，去处理信号，处理完毕再继续执行。与硬件中断类似——异步模式。但信号是软件层面上实现的中断.所有信号的产生和处理都是由【内核】完成的。
 
@@ -2705,6 +2749,8 @@ Linux内核的进程控制块PCB是一个结构体，task_struct,除了包含进
 阻塞信号集(信号屏蔽字)： 本质就是位图，用来记录信号的屏蔽状态。将某些信号加入集合，对他们设置屏蔽，当屏蔽x信号后，收到该信号时该信号的处理将推后。
 
 未决信号集:1.信号产生，未决信号集中描述该信号的位立刻翻转为1，表信号处于未决状态。当信号被处理对应位翻转回为0。这一时刻往往非常短暂。2.信号产生后由于某些原因(主要是阻塞)不能抵达进程。这类信号的集合称之为未决信号集。在屏蔽解除前，信号一直处于未决状态。
+
+> 内核产生信号，未决信号集对应的位变成1；当信号正在被处理，未决信号集对应的位变成0。阻塞信号集对应的位是1，表示在当前信号处理的过程中，同一种信号会被阻塞，到不了进程。假如在当前信号处理的过程中，内核又发送了同一个信号，那么未决信号集对应的位又从0变为了1。即使发送了很多同一个信号，未决信号集不记录次数，当前信号处理完，进程只会紧接着再处理一个信号，剩下的就丢弃了。这就是不排队机制。
 
 信号是由内核产生的，然后发送给进程，到达进程后就被内核处理掉。从产生到到达进程这个阶段叫做未决。从cpu级别来看信号都会经历未决状态，信号被阻塞了就会一直处在未决状态。
 
@@ -2738,7 +2784,7 @@ Linux内核的进程控制块PCB是一个结构体，task_struct,除了包含进
 
 **alarm函数**
 
-设置定时器(闹钟)。在指定seconds后，内核会给当前进程发送14号SIGALRM信号。进程收到该信号，默认动作终止。采用自然计时法。
+设置定时器(闹钟)。在指定的seconds后，内核会给当前进程发送14号SIGALRM信号。进程收到该信号，默认动作终止。采用自然计时法。
 
 **每个进程有且只有唯一一个定时器**。
 
@@ -2843,11 +2889,11 @@ F 信号不能被忽略。
 
 1）对该信号的处理采用系统的默认操作，大部分的信号的默认操作是终止进程。
 
-2）设置信号的处理函数（捕捉函数），收到信号后，由该函数来处理。
+2）设置信号的处理函数（捕捉函数），收到信号后，**操作系统将调用该函数来处理信号**。
 
 3）忽略某个信号，对该信号不做任何处理，就像未发生过一样。
 
-`signal()`函数可以设置程序对信号的处理方式。（signal用来注册信号捕捉函数）
+`signal()`函数可以设置程序对信号的处理方式。（signal又叫做信号注册函数、用来注册信号捕捉函数）
 
 函数声明：
 
@@ -2865,7 +2911,51 @@ F 信号不能被忽略。
 
 3）SIG_IGN：忽略参数signum所指的信号。
 
-示例：
+示例1：
+
+```cpp
+#include<stdio.h>
+#include<unistd.h>
+#include<signal.h>
+
+void timeout(int sig)	//定义信号处理函数，这种类型的函数称为信号处理器（Handler）
+{
+	if(sig == SIGALRM)
+		puts("Time out!");
+	alarm(2);
+}
+
+void keycontrol(int sig)	//定义信号处理函数，这种类型的函数称为信号处理器（Handler）
+{
+	if(sig == SIGINT)
+		puts("CTRL+C pressed");
+}
+
+int main(int argc, char * argv[])
+{
+	int i;
+	signal(SIGALRM, timeout);	//注册SIGALRM信号及其处理器
+	signal(SIGINT, keycontrol); //注册SIGINT信号，及其处理器
+	alarm(2);	//预约2秒后发生SIGALRM信号。
+
+	for(i = 0; i < 3; i++)
+	{
+		puts("wait...");
+		sleep(100); 
+	}
+	return 0;
+}
+```
+
+运行结果：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260313183825288.png" alt="image-20260313183825288" style="zoom:50%;" />
+
+> 拓展：sleep函数会被信号打断
+>
+> 当执行完puts语句后，进程进入睡眠状态，定时的2秒过去后操作系统会发送SIGALRM信号，将唤醒由于调用sleep函数而进入阻塞状态的进程。由于SIGALRM处理器中也调用了alarm函数，2s后发生SIGALRM信号，又将唤醒第二次循环的进程。所以for语句中未到sleep函数中规定的时间就执行下一次循环。
+
+示例2：
 
 服务程序运行在后台，如果想让中止它，杀掉不是个好办法，因为进程被杀的时候，是突然死亡，没有安排善后工作。
 
@@ -2910,6 +3000,8 @@ int main(int argc,char *argv[])
 
 如果向服务程序发送0的信号，可以检测程序是否存活。
 
+实际上常用的信号注册函数是sigaction函数。
+
 sigaction函数（也可以用来注册信号捕捉函数）
 
 `int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);`
@@ -2919,7 +3011,7 @@ sigaction函数（也可以用来注册信号捕捉函数）
 参数：
 
 * act 新的处理方式
-* oldact 旧的处理方式
+* oldact 旧的处理方式 传出参数 不关心就传0
 
 ```cpp
 // struct sigaction结构体
@@ -2927,7 +3019,7 @@ sigaction函数（也可以用来注册信号捕捉函数）
 struct sigaction {
 void (*sa_handler)(int); //函数指针 指向信号处理函数
 void (*sa_sigaction)(int, siginfo_t *, void *);//很少用
-sigset_t sa_mask; //屏蔽信号集 只在信号处理函数被调用期间生效
+sigset_t sa_mask; //屏蔽信号集(阻塞信号集) 只在信号处理函数被调用期间生效
 int sa_flags;// 通常设置为0 代表本信号使用默认属性 默认属性一般都是默认屏蔽。
 void (*sa_restorer)(void);//弃用
 };
@@ -2937,9 +3029,76 @@ void (*sa_restorer)(void);//弃用
 
 **信号捕捉特性**：
 
-* 捕捉函数执行期间，信号屏蔽字由sa_mask说了算，而不是mask。函数执行完毕，恢复为mask。（捕捉函数指的是sig_catch函数） 上面的程序中sa_mask都设置为了0，flag设置为0，代表本信号被阻塞，因此其实sa_mask中的SIGINT被设置成了1。
+* 捕捉函数执行期间，信号屏蔽字由sa_mask说了算，而不是mask。函数执行完毕，恢复为mask。（信号捕捉函数指的是sig_catch函数） 上面的程序中sa_mask都设置为了0，flag设置为0，代表本信号被阻塞，因此其实sa_mask中的SIGINT被设置成了1。
 * XXX信号捕捉函数执行期间，XXX信号自动被屏蔽。（flag需要设置为0）
 * 阻塞的常规信号不支持排队，产生多次只记录一次。（后32个实时信号支持排队）
+
+利用信号处理技术来消灭僵尸进程：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<signal.h>
+#include<sys/wait.h>
+
+void read_childproc(int sig)
+{
+	int status;
+	pid_t id = waitpid(-1, &status, WNOHANG);
+	if(WIFEXITED(status))
+	{
+		printf("Removed proc id: %d \n", id);
+		printf("Child send: %d \n", WEXITSTATUS(status));
+	}
+}
+
+int main(int argc, char * argv[])
+{
+	pid_t pid;
+	struct sigaction act;
+	act.sa_handler = read_childproc; //为了注册信号处理器，声明sigaction结构体变量并在sa_handler成员存函数指针值。
+	sigemptyset(&act.sa_mask); // 调用sigemtpyset函数将sa_mask成员的所有位初始化为0.
+	act.sa_flags = 0;	//sa_flags成员同样初始化为0。
+	sigaction(SIGCHLD, &act, 0);	//注册SIGCHILD信号对应的处理器。若子进程终止，则调用第七行定义的函数，处理函数中调用了waitpid函数，所以子进程将正常终止，不会成为僵尸进程。
+
+	pid = fork();
+	if(pid == 0)
+	{
+		puts("Hi! I'm child process");
+		sleep(10);
+		return 12;
+	}
+	else
+	{
+		printf("Child proc id: %d \n", pid);
+		pid = fork();
+		if(pid == 0)
+		{
+			puts("Hi! I'm child process");
+			sleep(10);
+			exit(24);
+		}
+		else
+		{
+			int i;
+			printf("Child proc id: %d \n", pid);
+			for(i = 0; i < 5; i++)	//为了等待发生SIGCHLD信号，是父进程共暂停5次，每次间隔5秒。发生信号时，父进程将被唤醒，因此实际暂停时间不到25秒。
+			{
+				puts("wait...");
+				sleep(5);
+			}
+		}
+	}
+	return 0;
+}
+```
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260313190820322.png" alt="image-20260313190820322" style="zoom:50%;" />
+
+> 这个程序存在问题，因为SIGCHLD信号是不排队的，如果第一个进程结束，父进程还没来得及处理信号，第二个子进程也结束了，那么父进程只会处理一个信号。
+>
+> ![image-20260313201659846](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260313201659846.png)
 
 **内核实现信号捕捉过程：**
 
