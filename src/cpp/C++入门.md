@@ -58,13 +58,13 @@ int main() {
 
 > 每次远程登陆Linux都需要输入密码，很麻烦，下面介绍如何才能免密登陆。
 >
-> 1. 生成密钥对。输入 ` ssh-keygen -t rsa -b 2048 -f C:\Users\YourUsername\.ssh\id_rsa_windows`，一路回车。会生成两个文件，一个公钥`id_rsa_windows.pub`、一个私钥`id_rsa_windows`。
+> 1. 生成密钥对：输入 ` ssh-keygen -t rsa -b 2048 -f C:\Users\YourUsername\.ssh\id_rsa_windows`，一路回车。会生成两个文件，一个公钥`id_rsa_windows.pub`、一个私钥`id_rsa_windows`。
 > 2. 打开`id_rsa_windows.pub`文件，复制上面的内容。
-> 3. 粘贴到Linux端的/root/.ssh/authorized_keys文件中。
-> 4. 打开ssh客户端配置文件`C:\Users\YourUsername\.ssh\config`。把生成的私钥文件路径`  IdentityFile C:\Users\xubenshan\.ssh\id_rsa_windows `粘贴到对应Linux服务器的位置。如下图所示。
+> 3. 本地ssh公钥复制到Linux端：粘贴到Linux端的/root/.ssh/authorized_keys文件中。
+> 4. 手动指定私钥位置：打开ssh客户端配置文件`C:\Users\YourUsername\.ssh\config`。把私钥文件路径`  IdentityFile C:\Users\xubenshan\.ssh\id_rsa_windows `粘贴到config中的对应Linux服务器IP的位置。如下图所示。
  ![image-20260218211729266](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260218211729266.png)
 
-
+> 场景：连接的是实验室的服务器，需要配置下ssh公钥。把本地的公钥也就是`id_rsa.pub`复制到服务器`~/.ssh/authorized_keys` ~是当前用户的主目录。不需要手动指定私钥位置，因为ssh客户端会自动去寻找`id_rsa`文件。
 
 使用g++对源文件进行编译：
 

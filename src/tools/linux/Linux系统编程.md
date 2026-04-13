@@ -2722,11 +2722,9 @@ public:
 
 ### 基本概念
 
-信号（signal）是软件中断，
+信号（signal）是软件中断，是进程之间相互传递消息的一种方法，用于通知进程发生了事件，但是，不能给进程传递任何数据。进程收到信号后，对该信号进行处理。（==在特定事件发生时由操作系统向进程发送的消息）==
 
-是进程之间相互传递消息的一种方法，用于通知进程发生了事件，但是，不能给进程传递任何数据。（==在特定事件发生时由操作系统向进程发送的消息）==
-
-给B发送信号，B收到信号之前执行自己的代码，收到信号后，不管执行到程序的什么位置，都要暂停运行，去处理信号，处理完毕再继续执行。与硬件中断类似——异步模式。但信号是软件层面上实现的中断.所有信号的产生和处理都是由【内核】完成的。
+给B发送信号，B收到信号之前执行自己的代码，收到信号后，不管执行到程序的什么位置，都要暂停运行，去处理信号，处理完毕再继续执行。与硬件中断类似——异步模式。但信号是软件层面上实现的中断。所有信号的产生和处理都是由【内核】完成的。
 
 产生信号的几种方式：
 
@@ -2744,7 +2742,7 @@ public:
 >
 > 未决：还没有到达进程 主要是由于阻塞导致该状态
 
-Linux内核的进程控制块PCB是一个结构体，task_struct,除了包含进程id，状态，工作目录，用户id，组id，文件描述符表，还包含了信号相关的信息，主要指阻塞信号集和未决信号集。
+Linux内核的进程控制块PCB是一个结构体，类型是task_struct，除了包含进程id，状态，工作目录，用户id，组id，文件描述符表，还包含了信号相关的信息，主要指阻塞信号集和未决信号集。
 
 阻塞信号集(信号屏蔽字)： 本质就是位图，用来记录信号的屏蔽状态。将某些信号加入集合，对他们设置屏蔽，当屏蔽x信号后，收到该信号时该信号的处理将推后。
 
@@ -3281,6 +3279,8 @@ int main(int argc, char *argv[])
 
 ## 线程
 
+> 多线程强调的是一个进程中有多个线程。假如有5个进程，每个进程都有一个线程，这不算是多线程技术。
+
 ### 基本概念
 
 LWP：light weight process轻量级的进程
@@ -3451,15 +3451,11 @@ int main(int argc, char *argv[])
 
 
 
-
-
-
-
 `pthread_exit`函数 表示退出当前线程
 
 `void pthread_exit(void *retval); `参数：retval表示线程退出状态，通常传NULL
 
-线程中，禁止使用exit函数，
+线程中，禁止使用exit函数。
 
 ```cpp
 void *tfn(void *arg)
@@ -3532,9 +3528,9 @@ int main(int argc, char *argv[])
 
     printf("main: pid = %d, tid = %lu\n", getpid(), pthread_self());
    // sleep(1); //避免子线程还没执行，主线程先死亡，导致进程地址空间被收回，子线程无法执行。
-    pthread_exit(NULL);//main函数中用pthread_exit函数表示退出主线程，主线程退出不影响子线程的执行。
+    pthread_exit(NULL);//main函数中用pthread_exit函数表示退出主线程，主线程退出，但让子线程继续执行。
 
-    return 0;
+   
 }
 ```
 
@@ -3721,6 +3717,8 @@ int main(void)
 > 一般情况下，线程终止后，其终止状态一直保留到**其它线程**调用pthread_join获取它的状态为止。但是线程也可以被置为detach状态，这样的线程一旦终止就立刻回收它占用的所有资源，而不保留终止状态。
 >
 > 不能对一个已经处于detach状态的线程调用pthread_join，这样的调用将返回EINVAL错误。也就是说，如果已经对一个线程调用了pthread_detach就不能再调用pthread_join了。
+>
+> 虽然分离了线程，但是当主线程结束的时候，整个进程结束，分离的子线程仍然会结束。想实现主线程结束但子线程还能继续运行，只需要在主线程中调用pthread_exit函数。
 
 **检查错误**：之前都是用`perror(str)`打印错误信息。perror会在底层访问errno。翻译成字符串传出来，再拼接上提示信息str。
 
@@ -3812,10 +3810,6 @@ int main(int argc, char *argv[])
 
 销毁线程属性`pthread_atr_destroy(&atr)`
 
-
-
-
-
 #### 线程使用注意事项
 
 * 主线程退出其他线程不退出，主线程应调用pthread_exit
@@ -3833,6 +3827,51 @@ int main(int argc, char *argv[])
 不同的对象，对“同步”的理解方式略有不同。如，设备同步，是指在两个设备之间规定一个共同的时间参考；数据库同步，是指让两个或多个数据库内容保持一致，或者按需要部分保持一致；文件同步，是指让两个或多个文件夹里的文件保持一致。等等。
 
 编程中、通信中所说的同步与生活中大家印象中的同步概念略有差异。“同”字应是指协同步调，按预定的先后次序运行，防止数据混乱，产生与时间有关的错误。
+
+为什么需要进行线程同步？
+
+下面是一个==很经典的例子==：多个线程访问一个全局变量。
+
+假设2个线程要执行将变量值逐次加1的工作，
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322213948876.png" alt="image-20260322213948876" style="zoom:33%;" />
+
+上图描述的是2个线程准备将变量num的值加1的情况。在此状态下，线程1将变量num的值增加到100后，线程2再访问num时，变量num中间按照我们预先保存101。下图是线程1将变量num完成增加后的情形。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322214032767.png" alt="image-20260322214032767" style="zoom:33%;" />
+
+上图中需要注意值的增加方式，值的增加需要CPU运算完成，变量num中的值不会自动增加。线程1首先读该变量的值并将其传递到CPU，获得加1之后的结果100，最后再把结果写回变量num，这样num中就保存100。接下来给出线程2的执行过程：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322214055640.png" alt="image-20260322214055640" style="zoom:33%;" />
+
+变量num中将保存101，但这是理想的情况。线程1完全增加num值之前，线程2完全有可能通过切换得到CPU资源。
+
+下图描绘的是线程1读取变量num的值并完成加1运算时的情况，只是加1后的结果尚未写入变量num。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322214132351.png" alt="image-20260322214132351" style="zoom:33%;" />
+
+接下来就要将100保存到变量num中，但执行该操作前，执行流程跳转到了线程2。幸运的是，线程2完成了加1运算，并将加1之后的结果写入变量num。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322214158717.png" alt="image-20260322214158717" style="zoom:33%;" />
+
+从上图可以看到，变量num的值尚未被线程1加到100，因此线程2读到的变量num的值为99，结果是线程2将num值改成100。还剩下线程1加运算后的值写入变量num的操作。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322214248031.png" alt="image-20260322214248031" style="zoom:33%;" />
+
+很可惜，此时线程1将自己的运算结果100再次写入变量num，结果变量num变成100。虽然线程1和线程2各做了1次加1运算，却得到了意想不到的结果。因此，线程访问变量num时应该阻止其他线程访问，直到线程1完成运算。这就是同步。
+
+再来介绍下线程安全和非线程安全函数。线程安全函数被多个线程同时调用时不会引发问题。非线程安全函数被同时调用时会引发问题。
+
+大多数标准函数都是线程安全的函数。更幸运的是，我们不用自己区分线程安全的函数和非线程安全的函数。因为这些平台在定义非线程安全函数的同时，提供了具有相同功能的线程安全的函数。线程安全函数的名称后缀通常为_r。
+
+编译时通过添加 `-D_REENTRANT`选项定义宏。可以将非线程安全函数改为线程安全函数。
+
+再介绍临界区：函数内同时运行多个线程时引起问题的多条语句构成的代码块。说白了就是多个线程同时访问某个区域可能会发生问题。这个区域就称为临界区。
+
+何时需要同步：
+
+* 多个线程同时访问同一个内存空间
+* 需要指定访问同一内存空间的线程执行顺序
 
 #### 互斥锁（互斥量）
 
@@ -4352,9 +4391,73 @@ sem_timedwait(&sem, &t);传参
 
 sem_post函数 相当于unlock操作，将信号量++，同时唤醒阻塞在信号量上的线程。 `int sem_post(sem_t *sem);`
 
+wait是用来阻塞的，post是用来解除阻塞的。 
+
+场景：线程A从用户输入得到值后存入全局变量num，此时线程B将取走该值并累加。该过程共进行5次，完成后输出总和并退出程序。
+
+```cpp
+#include<stdio.h>
+#include<pthread.h>
+#include<semaphore.h>
+
+void* read(void* arg);
+void* accu(void* arg);
+static sem_t sem_one;
+static sem_t sem_two;
+static int num;
+
+int main(int argc, char* argv[])
+{
+	pthread_t id_t1, id_t2;
+	sem_init(&sem_one, 0, 0);	//生成信号量，初始值为0
+	sem_init(&sem_two, 0, 1);	//生成信号量，初始值为1
+
+	pthread_create(&id_t1, NULL, read, NULL);
+	pthread_create(&id_t2, NULL, accu, NULL);
+
+	pthread_join(id_t1, NULL);
+	pthread_join(id_t2, NULL);
+
+	sem_destroy(&sem_one);
+	sem_destroy(&sem_two);
+	return 0;
+}
+
+void* read(void* arg)
+{
+	int i;
+	for(i = 0; i < 5; i++)
+	{
+		fputs("Input num: ", stdout);
+		sem_wait(&sem_two);	//利用信号量变量sem_two调用wait函数。
+		scanf("%d", &num);
+		sem_post(&sem_one); //利用信号量变量sem_one调用post函数。
+	}
+	return NULL;
+}
+
+void* accu(void* arg)
+{
+	int sum = 0, i;
+	for(i = 0; i < 5; i++)
+	{
+		sem_wait(&sem_one);	//利用信号量变量sen_one调用wait函数
+		sum += num;
+		sem_post(&sem_two);//利用信号量变量sem_two调用post函数。
+	}
+	printf("Result: %d\n", sum);
+	return NULL;
+}
+```
+
+如果只用一个信号量会发生什么问题：
+
+- 虽然能保证 read 写 num 的时候 accu 不能读，但**无法控制谁先抢到锁**。
+- 如果 read 连续两次抢到锁，它依然会覆盖上一次的数据。或者 accu 连续两次抢到锁，它会把同一个 num 累加两次。
+
 ==使用信号量实现生产者和消费者模型：==
 
-wait是用来阻塞的，post是用来解除阻塞的。 
+信号量实现生产者、消费者模型：
 
 ```cpp
 /* 信号量实现 生产者 消费者问题 */
@@ -4443,8 +4546,6 @@ int main(int argc, char *argv[])
 
 
 ![image-20260306131114920](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260306131114920.png)
-
-
 
 
 

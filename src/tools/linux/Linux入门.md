@@ -65,7 +65,7 @@ xftp：文件下载和上传
 
 ### vscode远程连接Ubuntu
 
-* 手动启动Openssh服务
+* 服务端手动启动Openssh服务（openssh是实现ssh协议的软件）
 
 ```bash
 sudo apt update
@@ -88,7 +88,7 @@ sudo systemctl status ssh
 
   ![image-20250919101443983](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20250919101443983.png)
 
-  输入用户名@host。host指的Linux服务器的IP地址。可以通过`ifconfig`查看。
+  输入用户名@host。host指的Linux服务器的IP地址。可以通过`ifconfig`查看。（ifconfig查看的是内网IP。）
   
   > vscode远程连接Centos系统报错：无法建立连接：远程主机不满足运行vscode服务器的先决条件。
   >
@@ -153,7 +153,8 @@ sudo chmod +x Snipaste-2.10.8-x86_64.AppImage
 ## 常用shell命令
 
 ```shell
-
+sudo su让你从当前的普通用户，变成系统的最高管理员（root 用户），并一直保持最高权限，直到你退出。
+命令提示符最后一个字符是$，代表普通用户；是#，代表root用户。
 cd .. 切换到根目录
 pwd 显示当前所在目录
 切换成root管理员 su - root
@@ -317,7 +318,7 @@ cd /root 切换到root目录
 
 cd ../home 
 
-cd ~ 回到家目录
+cd ~ 回到当前登陆用户的家目录（比如/home/tome/）
 
 cd .. 回到当前目录的上一级目录
 

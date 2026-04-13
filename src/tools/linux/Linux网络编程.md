@@ -13,6 +13,8 @@
 > 《TCP/IP网络编程》
 >
 > Socket 的本质是对 **TCP/IP 协议栈** 的编程接口封装。
+>
+> cpp没有标准网络库，用C++进行网络编程时要么采用第三方库，要么用操作系统提供的底层网络接口 比如linux的socket API。这个笔记记录的就是Linux系统提供的网络接口。
 
 ## 前置知识
 
@@ -45,8 +47,6 @@
 ### C/S架构
 
 还有一个架构叫B/S架构。webserver（网络服务器）应该就属于B/S架构。
-
-
 
 ### 网络字节序
 
@@ -2520,7 +2520,7 @@ if (feof(fp)) {
 >
 > ![image-20260321154816965](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321154816965.png)
 
-
+如果要把输出缓冲中的数据传到套接字输出缓冲，那么需要调用fflush函数。
 
 标准IO函数的缺点：
 
@@ -2533,6 +2533,311 @@ if (feof(fp)) {
 `FILE* fdopen(int fildes, const char* mode)`
 
 * 成功返回FILE指针 失败返回NULL。
+* fildes：需要转换的文件描述符
+* mode：将要创建的FILE指针的模式。若文件描述符为读模式，则基于该描述符生成的FILE结构体指针需要指定读模式；若文件描述符为写模式，则基于该描述符生成的FILE结构体指针需要指定写模式。
+
+`int fileno(FILE * stream);`
+
+* 成功返回文件描述符，失败返回NULL
+* stream：需要转换成fd的FILE指针
+
+标准IO函数进行socket网络通信程序：
+
+服务端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+
+#define BUF_SIZE 1024
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+	int serv_sock, clnt_sock;
+	char message[BUF_SIZE];
+	int str_len, i;
+	FILE * readfp;
+	FILE * writefp;
+	
+	struct sockaddr_in serv_adr, clnt_adr;
+	socklen_t clnt_adr_sz;
+
+	if(argc != 2){
+		printf("Usage : %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	if(serv_sock == -1)
+		error_handling("socket() error");
+	
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("bind() error");
+
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	clnt_adr_sz = sizeof(clnt_adr);
+	
+	for(i = 0; i < 5; i++)
+	{
+		clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &clnt_adr_sz);
+		if(clnt_sock == -1)
+			error_handling("accept() error");
+		else
+			printf("Connected client %d \n", i + 1);
+	
+		//while((str_len = read(clnt_sock, message, BUF_SIZE)) != 0)
+		//	write(clnt_sock, message, str_len);
+		//write(clnt_sock, message, str_len);
+		//close(clnt_sock);
+		readfp = fdopen(clnt_sock, "r");
+		writefp = fdopen(clnt_sock, "w");
+		while(!feof(readfp))//注意这里会出现之前提过的bug：最后传输的消息会多发一次
+		{
+			fgets(message, BUF_SIZE, readfp);
+			fputs(message, writefp);
+			fflush(writefp);
+		}
+        //while (fgets(message, BUF_SIZE, readfp) != NULL) 正确写法
+		//{
+   		//	 fputs(message, writefp);
+   		//	 fflush(writefp);
+		//}
+		fclose(readfp);
+		fclose(writefp);
+	}
+	close(serv_sock);
+	return 0;
+}
+
+void error_handling(char * message)
+{
+	fputs(message, stderr);
+	putc('\n', stderr);
+	exit(1);
+}
+```
+
+客户端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<sys/socket.h>
+#include<arpa/inet.h>
+
+#define BUF_SIZE 1024
+void error_handling(char * message);
+
+int main(int argc, char * argv[])
+{
+    int sock; 
+	char message[BUF_SIZE];
+    int str_len;
+    struct sockaddr_in serv_adr;
+	FILE* readfp;
+	FILE* writefp;
+
+	if(argc != 3){
+		printf("Usage : %s <IP> <port>\n", argv[0]);
+		exit(1);
+	}
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	if(sock == -1)
+		error_handling("socket() error");
+
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_adr.sin_port = htons(atoi(argv[2]));
+
+	if(connect(sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("connect() error");
+	else
+		puts("Connected........");
+
+	readfp = fdopen(sock, "r");//读指针
+	writefp = fdopen(sock, "w");//写指针
+
+	while(1)
+	{
+		fputs("Input message(Q to quit):", stdout);
+		fgets(message, BUF_SIZE, stdin);
+
+		if(!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
+			break;
+
+		//write(sock, message, strlen(message));
+		//str_len = read(sock, message, BUF_SIZE - 1);
+		//message[str_len] = 0;
+
+		fputs(message, writefp);
+		fflush(writefp);
+		fgets(message, BUF_SIZE, readfp);
+		printf("Message from server: %s", message);
+	}
+	fclose(writefp);
+	fclose(readfp);
+	return 0;
+}
+
+void error_handling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+接下来在介绍一个问题：FILE指针分为了读指针和写指针。fclose其中一个指针会直接把文件描述符关掉，进而底层的socket也关闭。关了readfp，那么writefp就没办法用了。如何用FILE指针进行半关闭操作呢？
+
+![image-20260321221427123](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321221427123.png)
+
+如何半关闭：创建FILE指针前先进行文件描述符的复制。
+
+![image-20260321221336313](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321221336313.png)
+
+==假如fclose写指针，那么写指针对应的文件描述符关闭了，只剩下了读模式的文件描述符。是不是实现了半关闭呢？其实没有。读模式的底层文件描述符仍然可以进行同时IO。==如何解决？采用shutdown函数。调用shutdown函数时，不管复制出多少的fd，都会进入半关闭状态，同时传递EOF。
+
+> 注意：调用close是不会传递EOF的，close有引用计数，只有所有复制的文件描述符都关闭，套接字才能关闭，才会向对方发送EOF。
+
+如何实现文件描述符之间的复制呢，可以用dup和dup2函数。dup2和dup的区别就是dup2可以指定复制得到的文件描述符是多少。
+
+FILE指针实现半关闭的程序：
+
+场景：服务器发送完数据了，断开输出流，进入半关闭。通过服务器端的半关闭状态接收客户端最后发送的字符串。
+
+服务端代码：
+
+```cpp
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#define BUF_SIZE 1024
+
+void error_handling(char* message);
+
+int main(int argc, char* argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_addr, clnt_addr;
+	socklen_t clnt_addr_size;
+	char buf[BUF_SIZE] = {0,};
+	FILE* readfp;
+	FILE* writefp;
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	if(serv_sock == -1)
+		error_handling("socket() error");
+
+	if(argc != 2)
+	{
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
+		error_handling("bind() error");
+
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+	clnt_addr_size = sizeof(clnt_addr);
+	clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &clnt_addr_size);
+	if(clnt_sock == -1)
+		error_handling("accept() error");
+	
+	readfp = fdopen(clnt_sock, "r");
+	writefp = fdopen(dup(clnt_sock), "w");//通过dup函数的返回值生成FILE指针
+
+	fputs("FROM SERVER: Hi~ client? \n", writefp);
+	fputs("I love C++\n", writefp);
+	fputs("learn hard!\n", writefp);
+	fflush(writefp);
+
+	shutdown(fileno(writefp), SHUT_WR);	//shutdown，服务器进入半关闭，并向客户端发送EOF消息。
+	fclose(writefp);
+
+	fgets(buf, sizeof(buf), readfp);
+	fputs(buf, stdout);
+	fclose(readfp);
+	return 0;
+}
+void error_handling(char* message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+客户端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#define BUF_SIZE 1024
+
+int main(int argc, char * argv[])
+{
+	int sock;
+	char buf[BUF_SIZE];
+	struct sockaddr_in serv_addr;
+
+	FILE* readfp;
+	FILE* writefp;
+
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_addr.sin_port = htons(atoi(argv[2]));
+
+	connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+	readfp = fdopen(sock, "r");
+	writefp = fdopen(sock, "w");
+
+	while(1)
+	{
+		if(fgets(buf, sizeof(buf), readfp) == NULL)	//收到EOF时，fgets函数将返回NULL指针。因此，添加if语句使收到NULL时退出循环
+			break;
+		fputs(buf, stdout);
+		fflush(stdout);
+	}
+	fputs("FROM CLIENT: Thank you! \n", writefp);	//通过该语句向服务器端发送最后的字符串
+	fflush(writefp);
+	fclose(writefp);
+	fclose(readfp);
+	return 0;
+}
+```
+
+
 
 ## 实现并发服务器
 
@@ -3140,6 +3445,251 @@ int main()
 }
 ```
 
+==多人聊天室程序：==
+
+核心逻辑：**主线程负责不断接收新客户端的连接，每来一个客户端，就创建一个新的子线程去专门服务它。所有的子线程共享一个包含所有客户端信息的数组，当收到某人的消息时，就群发给所有人。**
+
+架构图：
+
+![Client-Server Socket-2026-03-23-114854](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/Client-Server%20Socket-2026-03-23-114854.png)
+
+服务器端：
+
+```cpp
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <pthread.h>
+
+#define BUF_SIZE 100
+#define MAX_CLNT 256    
+
+void* handle_clnt(void* arg);
+void send_msg(char* msg, int len);
+void error_handling(char* msg);
+
+int clnt_cnt = 0;
+int clnt_socks[MAX_CLNT];
+pthread_mutex_t mutx;
+
+int main(int argc, char* argv[])
+{
+    int serv_sock, clnt_sock;
+    struct sockaddr_in serv_adr, clnt_adr;
+    socklen_t clnt_adr_sz; // 【优化】规范化类型，使用 socklen_t
+    pthread_t t_id;
+    
+    if(argc != 2)
+    {
+        printf("Usage: %s <port>\n", argv[0]);
+        exit(1);
+    }
+
+    pthread_mutex_init(&mutx, NULL);
+    serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+
+    memset(&serv_adr, 0, sizeof(serv_adr));
+    serv_adr.sin_family = AF_INET;
+    serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_adr.sin_port = htons(atoi(argv[1]));
+
+    if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+        error_handling("bind() error");
+
+    if(listen(serv_sock, 5) == -1)
+        error_handling("listen() error");
+
+    printf("Server is running on port %s...\n", argv[1]);
+
+    while(1)
+    {
+        clnt_adr_sz = sizeof(clnt_adr);
+        clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &clnt_adr_sz);
+        
+        // 【新增保护】防止客户端数量超过数组上限导致内存溢出崩溃
+        pthread_mutex_lock(&mutx);
+        if (clnt_cnt >= MAX_CLNT) {
+            printf("Connection Refused: Max clients reached.\n");
+            pthread_mutex_unlock(&mutx);
+            close(clnt_sock); // 拒接连接并关闭
+            continue;
+        }
+        
+        // 【修复 Bug 1】动态分配内存存放新套接字，防止被下一次 accept 覆盖
+        int* new_sock = (int*)malloc(sizeof(int));
+        *new_sock = clnt_sock;
+
+        clnt_socks[clnt_cnt++] = clnt_sock;
+        pthread_mutex_unlock(&mutx);
+
+        // 传递动态分配的内存地址过去
+        pthread_create(&t_id, NULL, handle_clnt, (void*)new_sock);
+        pthread_detach(t_id);
+        
+        printf("Connected client IP: %s, Socket FD: %d \n", inet_ntoa(clnt_adr.sin_addr), clnt_sock);
+    }
+    
+    close(serv_sock);
+    pthread_mutex_destroy(&mutx); // 规范操作：销毁互斥锁
+    return 0;
+}
+
+void* handle_clnt(void* arg)
+{
+    // 提取传入的套接字，并立即释放 main 函数中 malloc 的内存！
+    int clnt_sock = *((int*)arg);
+    free(arg); // 【配合修复 Bug 1】
+
+    int str_len = 0, i, j;
+    char msg[BUF_SIZE];
+
+    // 只要能读到数据，就群发
+    while((str_len = read(clnt_sock, msg, BUF_SIZE)) != 0)
+    {
+        send_msg(msg, str_len);
+    }
+
+    // 客户端断开连接，开始清理数组
+    pthread_mutex_lock(&mutx);
+    for(i = 0; i < clnt_cnt; i++)
+    {
+        if(clnt_sock == clnt_socks[i])
+        {
+            // 【修复 Bug 2】使用标准的 for 循环进行数组前移覆盖，逻辑清晰绝不越界
+            for(j = i; j < clnt_cnt - 1; j++)
+            {
+                clnt_socks[j] = clnt_socks[j + 1];
+            }
+            break;
+        }
+    }
+    clnt_cnt--;
+    pthread_mutex_unlock(&mutx);
+    
+    printf("Client disconnected, Socket FD: %d \n", clnt_sock);
+    close(clnt_sock);
+    
+    return NULL;
+}
+
+void send_msg(char* msg, int len)
+{
+    int i;
+    pthread_mutex_lock(&mutx);
+    for(i = 0; i < clnt_cnt; i++)
+    {
+        write(clnt_socks[i], msg, len);
+    }
+    pthread_mutex_unlock(&mutx);
+}
+
+void error_handling(char* msg)
+{
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    exit(1);
+}
+```
+
+客户端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<pthread.h>
+#define BUF_SIZE 100
+#define NAME_SIZE 20
+
+void* send_msg(void* arg);
+void* recv_msg(void* arg);
+void error_handling(char* msg);
+
+char name[NAME_SIZE] = "[DEFAULT]";
+char msg[BUF_SIZE];
+
+int main(int argc, char* argv[])
+{
+	int sock;
+	struct sockaddr_in serv_addr;
+	pthread_t snd_thread, rcv_thread;
+	void* thread_return;
+	if(argc != 4)
+	{
+		printf("Usage: %s<IP><port><name>\n", argv[0]);
+		exit(1);
+	}
+
+	sprintf(name, "[%s]", argv[3]);
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_addr.sin_port = htons(atoi(argv[2]));
+
+	if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
+		error_handling("connect() error");
+
+	pthread_create(&snd_thread, NULL, send_msg, (void*)&sock);
+	pthread_create(&rcv_thread, NULL, recv_msg, (void*)&sock);
+	pthread_join(snd_thread, &thread_return);
+	pthread_join(rcv_thread, &thread_return);
+	close(sock);
+	return 0;
+}
+
+void* send_msg(void* arg)	//send thread main
+{
+	int sock = *((int*)arg);	
+	char name_msg[NAME_SIZE + BUF_SIZE];
+	while(1)
+	{
+		fgets(msg, BUF_SIZE, stdin);
+		if(!strcmp(msg, "q\n") || !strcmp(msg, "Q\n"))
+		{
+			close(sock);
+			exit(0);
+		}
+		sprintf(name_msg, "%s %s", name, msg);
+		write(sock, name_msg, strlen(name_msg));
+	}
+	return NULL;
+}
+
+void* recv_msg(void* arg)	//read thread main
+{
+	int sock=*((int*)arg);
+	char name_msg[NAME_SIZE + BUF_SIZE];
+	int str_len;
+	while(1)
+	{
+		str_len = read(sock, name_msg, NAME_SIZE + BUF_SIZE - 1);
+		if(str_len == -1)
+			return (void*)-1;
+		name_msg[str_len] = 0;
+		fputs(name_msg, stdout);
+	}
+	return NULL;
+}
+
+void error_handling(char* msg)
+{
+	fputs(msg, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
 多路复用：用一个进程来维护多个Socket。
 
 与多进程和多线程技术相比，I/O多路复用技术的最大优势是系统开销小，系统不必创建进程/线程，也不必维护这些进程/线程，从而大大减小了系统的开销。
@@ -3372,33 +3922,564 @@ void error_handling(char * buf)
 
 小林coding：
 
-> select 实现多路复用的方式是，将已连接的 Socket 都放到一个文件描述符集合，然后调用 select 函数将文件描述符集合拷贝到内核里，让内核来检查是否有网络事件产生，检查的方式很粗暴，就是通过遍历文件描述符集合的方式，当检查到有事件产生后，将此Socket标记为可读或可写，接着再把整个文件描述符集合拷贝回用户态里，然后用户态还需要再通过遍历的方法找到可读或可与的Socket，然后再对其处理。
+> select 实现多路复用的方式是：将已连接的 Socket 都放到一个文件描述符集合，然后调用 select 函数将文件描述符集合拷贝到内核里，让内核来检查是否有网络事件产生，检查的方式很粗暴，就是通过遍历文件描述符集合的方式，当检查到有事件产生后，将此Socket标记为可读或可写，接着再把整个文件描述符集合拷贝回用户态里，然后用户态还需要再通过遍历的方法找到可读或可与的Socket，然后再对其处理。
 >
 > 所以，对于select 这种方式，需要进行2次遍历」文件描述符集合，一次是在内核态里，一个次是在用户态里，而且还会发生2次「拷贝」文件描述符集合，先从用户空间传入内核空间，由内核修改后，再传出到用户空间中。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 #### poll
 
 #### epoll
+
+回顾下select，select可以让一个进程同时管理多个fd，把需要监视的fd集中在了一起。
+
+先来说一下select的缺点：
+
+* 需要循环找到哪些监视对象发生了变化。（监视对象就是需要监视的fd）
+* 每次调用select的时候都需要传递监视对象信息。
+
+相比于循环语句，实际上影响性能的最大因素是每次传递监视对象信息。为什么呢？因为监视对象信息需要传递给操作系统，应用程序向操作系统传递数据将对程序造成很大负担，而且无法通过优化代码解决，因此将称为性能上的致命弱点。
+
+那为何需要把监视对象信息传递给操作系统呢？因为套接字是操作系统管理的，select是监视套接字变化的函数，所以需要借助操作系统才能完成功能。
+
+接下来引入epoll，epoll很好的解决的上述问题。
+
+epoll服务端需要的三个函数：
+
+- `epoll_create`：创建保存epoll文件描述符的空间。
+- `epoll_ctl` ：向空间注册并注销文件描述符。
+- `epoll_wait`：与select函数类似，等待文件描述符发生变化。
+
+select方式中为了保存监视的文件描述符，直接声明了fd_set变量。但epoll方式下由操作系统负责保存监视的文件描述符， 因此需要向操作系统请求创建保存文件描述符的空间，此时用的函数就是epoll_create。
+
+此外，为了添加和删除监视对象文件描述符，select方式中需要`FD_SET`、`FD_CLR`函数。但在epoll方式中，通过`epoll_ctl`函数请求操作系统完成。最后，select方式下调用`select`函数等待文件描述符的变化，而epoll调用`epoll_wait`函数。还有，select方式中通过fd_set变量查看监视对象的状态变化（事件发生与否），而epoll方式中通过如下结构体epoll_event将发生变化的（发生事件的）文件描述符单独集中到一起。
+
+```cpp
+struct epoll_event
+{
+    __unit32_t events;
+    epoll_data_t data;
+}
+typedef union epoll_data
+{
+    void* ptr;
+    int fd;
+    __unit32_t u32;
+    __unit64_t u64;
+}epoll_data_t;
+```
+
+声明足够大的epoll_event结构体数组后，传递给epoll_wait函数时，发生变化的文件描述符信息将被填入该数组。
+
+第一个函数：`epoll_create`
+
+`int epoll_create(int size);` size没什么用，操作系统会忽略。该函数返回epoll文件描述符，失败返回-1。
+
+调用epoll_create函数时创建的文件描述符保存空间称为「epoll例程」
+
+第二个函数：`epoll_ctl` 
+
+`int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);`
+
+* 失败返回-1，成功返回0。
+* epfd：epoll例程对应的文件描述符
+* op：指定添加监视对象、删除监视对象、更改等操作（EPOLL_CTL_ADD、EPOLL_CTL_DEL、EPOLL_CTL_MOD）
+* fd：注册监视对象
+* event：监视对象的事件类型
+
+举例：
+
+`epoll_ctl(A, EPOLL_CTL_ADD, B, C);`：“epoll例程A中注册文件描述符B，主要目的是监视参数C中的事件。”
+
+`epoll_ctl(A, EPOLL_CTL_DEL, B, NULL);`：从epoll例程A中删除文件描述符B。
+
+重点看第四个参数，是一个epoll_event结构体类型的指针
+
+```cpp
+struct epoll_event event;
+...
+event.events = EPOLLIN;	//发生需要读取数据的情况（事件）时
+event.data.fd = sockfd;
+epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
+...
+```
+
+上述代码将sockfd注册到epoll例程epfd中，并在需要读取数据的情况下产生相应事件。
+
+接下来给出epoll_event变量的成员events中可以保存的常量及所指的事件类型：
+
+| EPOLL_CTL_MOD常量 | 事件类型                                                     |
+| ----------------- | ------------------------------------------------------------ |
+| EPOLLIN           | 需要读取数据的情况                                           |
+| EPOLLOUT          | 输出缓冲为空，可以立即发送数据的情况                         |
+| EPOLLPRI          | 收到OOB数据的情况                                            |
+| EPOLLRDHUB        | 断开连接或半关闭的情况，这在边缘触发方式下非常有用。         |
+| EPOLLERR          | 发生错误的情况                                               |
+| EPOLLET           | 以边缘触发的方式得到事件通知。                               |
+| EPOLLONESHOT      | 发生一次事件后，相应文件描述符不再收到事件通知。因此需要向epoll_ctl函数的第二个参数传递EPOLL_CTL_MOD,再次设置事件。 |
+
+第三个函数：`epoll_wait`
+
+`int epoll_wait(int epfd, struct epoll_event* events, int maxevents, int timeout);`
+
+> 成功时返回发生事件的描述符总数，失败时返回-1。
+>
+> 参数1：epfd，epoll例程的文件描述符。
+>
+> 参数2：events，保存发生事件的文件描述符集合的结构体地址值。
+>
+> 参数3：maxevents，第二个参数中可以保存的最大事件数。
+>
+> 参数4：timeout，以1/1000秒为单位的等待时间，传递-1时，一直等待直到发生事件。
+
+该函数的调用方法如下。需要注意的是，第二个参数所指定缓冲需要动态分配。
+
+```cpp
+int event_cnt;
+struct epoll_event* ep_events;
+...
+ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE); //EPOLL_SIZE是宏常量
+...
+events_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1);
+```
+
+epoll示例：
+
+基于epoll的回声服务端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<sys/epoll.h>
+
+#define BUF_SIZE 100
+#define EPOLL_SIZE 50	//ºê³£Á¿
+void error_handling(char* buf);
+
+int main(int argc, char* argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+	socklen_t adr_sz;
+	int str_len, i;
+	char buf[BUF_SIZE];
+
+	struct epoll_event* ep_events;
+	struct epoll_event event;
+	int epfd, event_cnt;
+
+	if(argc != 2){
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+	error_handling("bind() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	epfd = epoll_create(EPOLL_SIZE);
+	ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE);
+
+	event.events = EPOLLIN;
+	event.data.fd = serv_sock;
+	epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sock, &event);
+
+	while(1)
+	{
+		event_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1);
+		if(event_cnt == -1)
+		{
+			puts("epoll_wait() error");
+			break;
+		}
+		
+		for(i = 0; i < event_cnt; i++)
+		{
+			if(ep_events[i].data.fd == serv_sock)
+			{
+				adr_sz = sizeof(clnt_adr);
+				clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+				event.events = EPOLLIN;
+				event.data.fd = clnt_sock;
+				epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sock, &event);
+				printf("connected client: %d\n", clnt_sock);
+			}
+			else
+			{
+				str_len = read(ep_events[i].data.fd, buf, BUF_SIZE);
+				if(str_len == 0) //close request!
+				{
+					epoll_ctl(epfd, EPOLL_CTL_DEL, ep_events[i].data.fd, NULL);
+					close(ep_events[i].data.fd);
+					printf("closed client: %d\n", ep_events[i].data.fd);
+				}
+				else
+				{
+					write(ep_events[i].data.fd, buf, str_len);
+				}
+			}
+
+		}
+	}
+	close(serv_sock);
+	close(epfd);
+	return 0;
+}
+
+void error_handling(char* buf)
+{
+	fputs(buf, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+
+
+==边缘触发和水平触发的区别在于发生事件的时间点。==
+
+##### 边缘触发
+
+边缘触发中输入缓冲收到数据时仅通知1次该事件。即使输入缓冲中还留有数据，也不会再次进行通知。
+
+##### 水平触发（条件触发）
+
+条件触发方式中，只要输入缓冲有数据就会一直通知该事件。
+
+例如，服务器端输入缓冲收到50字节的数据时，服务器端操作系统将通知该事件。但是服务器端读取20字节后还剩下30字节的情况下，仍会通知事件。也就是说，条件触发方式中，只要输入缓冲中还剩有数据，就将以事件方式再次通知应用程序。
+
+> 这里书上用的“注册事件”来代替通知事件。
+> 当网卡收到数据，放到操作系统的输入缓冲区后，操作系统内核会把这个对应的文件描述符，添加到一个名叫“就绪队列（Ready List）”的清单里（这就是注册事件）。然后把这个清单扔给应用程序（这就是通知）。两者描述的是同一个结果。
+>
+> 咱们平时的习惯是：**注册（Register）：是“应用程序”对“操作系统”做的动作。**** **通知（Notify）：是“操作系统”对“应用程序”做的动作**。所以书上读起来有的别扭。
+
+epoll默认以条件触发方式工作。
+
+通过代码了解下条件触发的事件通知方式：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<sys/epoll.h>
+
+#define BUF_SIZE 4
+#define EPOLL_SIZE 50
+void error_handling(char* buf);
+
+int main(int argc, char* argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+	socklen_t adr_sz;
+	int str_len, i;
+	char buf[BUF_SIZE];
+
+	struct epoll_event *ep_events;
+	struct epoll_event event;
+
+	int epfd, event_cnt;
+
+	if(argc != 2)
+	{
+		printf("Usage: %s<port>\n", argv[0]);
+		exit(1);
+	}
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0 ,sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("bind() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	epfd = epoll_create(EPOLL_SIZE);
+	ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE);
+
+	event.events = EPOLLIN;
+	event.data.fd = serv_sock;
+	epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sock, &event);
+
+	while(1)
+	{
+		event_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1);
+		if(event_cnt == -1)
+		{
+			puts("epoll_wait() error");
+			break;
+		}
+
+		puts("return epoll_wait");
+		for(i = 0; i < event_cnt; i++)
+		{
+			if(ep_events[i].data.fd == serv_sock) 
+			{
+			    adr_sz = sizeof(clnt_adr);
+				clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+				event.events = EPOLLIN;
+			       	event.data.fd = clnt_sock;
+				epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sock, &event);
+				printf("connected client: %d \n", clnt_sock);
+			}
+			else
+			{
+				str_len = read(ep_events[i].data.fd, buf, BUF_SIZE);
+				if(str_len == 0)
+				{
+					epoll_ctl(epfd, EPOLL_CTL_DEL, ep_events[i].data.fd, NULL);
+					close(ep_events[i].data.fd);
+					printf("closed client: %d \n", ep_events[i].data.fd);
+				}
+				else
+				{
+					write(ep_events[i].data.fd, buf, str_len);
+				}
+			}
+		}
+	}
+	close(serv_sock);
+	close(epfd);
+}
+
+void error_handling(char* buf)
+{
+	fputs(buf, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+上述示例与之前的echo_epollserv.c之间的差异如下：
+
+- 将调用read函数时使用的缓冲大小缩减为4字节
+
+- 插入验证epoll_wait函数调用次数的语句。
+
+  > `puts("return epoll_wait");`
+
+减少缓冲大小是为了阻止服务器端一次性读取接收的数据，以便观察。换言之，调用read函数后，输入缓冲中仍有数据需要读取。而且会因此通知新的事件并从epoll_wait函数返回时将循环输出`return epoll_wait`字符串。
+
+将下面这行代码改为`event.events = EPOLLIN|EPOLLET;`
+
+```cpp
+//clnt_sock = accept(...)
+event.events = EPOLLIN; //改动这一行
+```
+
+从客户端接收数据时，仅输出1次`return epoll_wait`字符串，这意味着仅注册（通知）1次事件。
+
+虽然可以验证上述事实，当客户端运行时将发生错误。但如果理解了边缘触发的特性，应该可以分析出错误原因。
+
+==错误原因是什么？==
+
+![image-20260323195140148](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260323195140148.png)
+
+
+
+| select模型是条件触发还是边缘触发                             |
+| ------------------------------------------------------------ |
+| select模型是以条件触发的方式工作的，输入缓冲中如果还剩有数据，肯定会注册事件。 |
+
+接下来先来讲一下如何把套接字改成非阻塞方式。（IO的时候不会阻塞等待）
+
+可以使用在系统编程中学过的fcntl更改套接字属性：
+
+```cpp
+int flag = fcntl(fd, F_GETFL, 0);
+fcntl(fd, F_SETFL, flag| O_NONBLOCK);
+```
+
+通过第一条语句获取之前设置的属性信息，通过第二条语句在此基础上添加非阻塞`O_NONBLOCK`标志。调用read&write函数时，无论是否存在数据，都会形成非阻塞文件（套接字）。
+
+read函数发现输入缓冲中没有数据可读时返回-1，同时在errno中保存EAGAIN常量。
+
+基于边缘触发的回声服务端：
+
+```cpp
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<sys/epoll.h>
+#include<errno.h>
+#include<fcntl.h>
+#define BUF_SIZE 4	//为了验证边缘触发的工作方式，将缓冲设置为4字节
+#define EPOLL_SIZE 50
+
+void setnonblockingmode(int fd);
+void error_handling(char* buf);
+
+int main(int argc, char* argv[])
+{
+	int serv_sock, clnt_sock;
+	struct sockaddr_in serv_adr, clnt_adr;
+	socklen_t adr_sz;
+	int str_len, i;
+	char buf[BUF_SIZE];
+
+	struct epoll_event* ep_events;
+	struct epoll_event event;
+	int epfd, event_cnt;
+
+	if(argc != 2)
+	{
+		printf("Usage: %s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&serv_adr, 0, sizeof(serv_adr));
+	serv_adr.sin_family = AF_INET;
+	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_adr.sin_port = htons(atoi(argv[1]));
+	if(bind(serv_sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1)
+		error_handling("bind() error");
+	if(listen(serv_sock, 5) == -1)
+		error_handling("listen() error");
+
+	epfd = epoll_create(EPOLL_SIZE);
+	ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE);
+
+	setnonblockingmode(serv_sock);
+	event.events = EPOLLIN;
+	event.data.fd = serv_sock;
+	epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sock, &event);
+
+	while(1)
+	{
+		event_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1);
+		if(event_cnt == -1)
+		{
+			puts("epoll_wait() error");	
+			break;
+		}
+
+		puts("return epoll_wait");	//为观察事件发生数而添加的输出字符串的语句
+		for(i = 0; i < event_cnt; i++)
+		{
+			if(ep_events[i].data.fd == serv_sock)
+			{
+				adr_sz = sizeof(clnt_adr);
+				clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &adr_sz);
+				setnonblockingmode(clnt_sock);	//将accept函数创建的套接字改为非阻塞模式。
+				event.events = EPOLLIN|EPOLLET; //向EPOLLIN添加EPOLLET标志，将套接字事件注册方式改为边缘触发。
+				event.data.fd = clnt_sock;
+				epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sock, &event);
+				printf("connected client: %d\n", clnt_sock);
+			}
+			else
+			{
+				while(1)	//之前的条件触发回声服务器端中没有该while循环。边缘触发方式中，发生事件时需要读取输入缓冲中的所有数据，因此需要循环调用read函数。
+				{
+					str_len = read(ep_events[i].data.fd, buf, BUF_SIZE);
+					if(str_len == 0)
+					{
+						epoll_ctl(epfd, EPOLL_CTL_DEL, ep_events[i].data.fd, NULL);
+						close(ep_events[i].data.fd);
+						printf("closed client %d\n", ep_events[i].data.fd);
+						break;
+					}
+					else if(str_len < 0)
+					{
+						if(errno == EAGAIN)	//read函数返回-1且errno值为EAGAIN时，意味着读取了输入缓冲中的全部数据，因此需要通过break语句跳出while循环。
+						{
+							break;
+						}
+					}
+					else
+					{
+						write(ep_events[i].data.fd, buf, str_len);
+					}
+				}
+			}
+		}
+	}
+	close(serv_sock);
+	close(epfd);
+	return 0;
+}
+
+void setnonblockingmode(int fd)
+{
+	int flag = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, flag|O_NONBLOCK);
+}
+
+void error_handling(char* buf)
+{
+	fputs(buf, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+```
+
+运行结果：
+
+```cpp
+//server：
+./EPETserv 5009    
+return epoll_wait
+connected client: 5
+return epoll_wait
+return epoll_wait
+return epoll_wait
+closed client 5
+    
+//client：   
+./eclient 127.0.0.1 5009
+Connected........
+Input message(Q to quit):hello
+Message from server: hello
+Input message(Q to quit):TCP/IP
+Message from server: TCP/IP
+Input message(Q to quit):q
+```
+
+上述运行结果中需要注意的是，客户端发送消息次数和服务器端epoll_wait函数调用次数。客户端从请求连接到断开连接共发送4次数据（连接请求也算一次数据），服务器端也相应产生4个事件。
+
+边缘触发相较条件触发的优点：可以分离接收数据和处理数据的时间点。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260322201741329.png" alt="image-20260322201741329" style="zoom:33%;" />
+
+上图运行流程如下：
+
+1. 服务器端分别从客户端A、B、C接收数据。
+2. 服务器端按照A、B、C的顺序重新组合收到的数据。
+3. 组合的数据将发送给任意主机。
+
+为了完成该过程，若能按如下流程运行程序，服务器端的实现并不难。
+
+1. 客户端按照A、B、C的顺序连接服务器端，并依序向服务器端发送数据。
+2. 需要接收数据的客户端应在客户端A、B、C之前连接到服务器端并等待。
+
+但现实中可能频繁出现如下这些情况，换言之，如下情况更符合实际。
+
+1. 客户端C和B正向服务器端发送数据，但A尚未连接到服务器端。
+2. 客户端A、B、C乱序发送数据。
+3. 服务器端已收到数据，但要接收数据的目标客户端还未连接到服务器端。
+
+因此，即使输入缓冲收到数据，服务器端也能决定读取和处理这些数据的时间点，这样就给服务器端的实现带来巨大的灵活性。
 
 ## 通信总结
 
@@ -3417,6 +4498,8 @@ void error_handling(char * buf)
 * I/O多路复用
 
 ## 一些误区
+
+输入和输出都是站在应用程序的角度来说的。
 
 ![image-20260321163037565](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260321163037565.png)
 
