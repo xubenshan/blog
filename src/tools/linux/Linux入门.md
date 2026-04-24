@@ -80,7 +80,9 @@ sudo systemctl enable ssh
 sudo systemctl status ssh
 ```
 
-* vscode端安装open-ssh插件
+* vscode端安装remote-ssh插件（用trae不用安这个插件，直接用远程资源管理器。）
+
+![image-20260422132823960](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260422132823960.png)
 
 * 远程连接
 
@@ -88,8 +90,8 @@ sudo systemctl status ssh
 
   ![image-20250919101443983](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20250919101443983.png)
 
-  输入用户名@host。host指的Linux服务器的IP地址。可以通过`ifconfig`查看。（ifconfig查看的是内网IP。）
-  
+  输入用户名@host -A。host指的Linux服务器的IP地址。可以通过`ifconfig`查看。（ifconfig查看的是内网IP。）
+
   > vscode远程连接Centos系统报错：无法建立连接：远程主机不满足运行vscode服务器的先决条件。
   >
   > 原因是VS Code 远程开发需要 **glibc ≥ 2.28**。

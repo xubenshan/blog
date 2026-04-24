@@ -7,7 +7,7 @@ order: 1
 
 # C++入门
 
->  根据B站视频、黑马笔记、《C++ Primer Plus（第6版）中文版》整理的笔记
+>  根据B站码农论坛视频、黑马笔记、《C++ Primer Plus（第6版）中文版》整理的笔记。
 
 ## 搭建开发环境
 
@@ -15,7 +15,7 @@ order: 1
 
 vscode这边只需要安装C++、CMake Tools插件即可。
 
-我们需要搭建Linux的开发环境。我采用的服务器是Ubuntu22.04。需要在终端执行以下命令。
+我们需要搭建Linux的开发环境。我采用的服务器是Ubuntu22.04。需要在终端执行以下命令来配置开发环境。
 
 ```bash
 # 1.更新包列表: 更新包管理器的包列表，确保你能从最新的仓库中获取软件。
@@ -36,11 +36,46 @@ sudo apt install valgrind
 
 # Valgrind 主要用于内存泄露检测、内存调试以及性能分析的工具。
 
-# 安装其他 我买的是阿里云服务器，没有执行这条命令，也可以进行远程连接。
-sudo apt install openssh-server     # 安装 OpenSSH 服务器，以支持 ssh 连接
 ```
 
-判断开发环境是否搭建完成：
+接下来要用vscode远程连接服务器：
+
+* 服务端手动启动Openssh服务（openssh是实现ssh协议的软件）
+
+```bash
+sudo apt update
+sudo apt install openssh-server # 安装 OpenSSH 服务器，以支持 ssh 连接 我买的是阿里云服务器，没有执行这条命令，也可以进行远程连接。
+sudo systemctl start ssh
+sudo systemctl enable ssh 
+```
+
+检查是否开启ssh服务
+
+```bash
+sudo systemctl status ssh
+```
+
+* vscode端安装remote-ssh插件（用trae的话不用安这个插件，直接用远程资源管理器。）
+
+![image-20260422132823960](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260422132823960.png)
+
+* 远程连接
+
+  ![image-20250919101426186](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20250919101426186.png)
+
+  ![image-20250919101443983](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20250919101443983.png)
+
+  输入`用户名@host -A`。host指的Linux服务器的IP地址。可以通过`ifconfig`查看。（ifconfig查看的是内网IP。）
+
+  > vscode远程连接Centos系统报错：无法建立连接：远程主机不满足运行vscode服务器的先决条件。
+  >
+  > 原因是VS Code 远程开发需要 **glibc ≥ 2.28**。
+  >
+  > 通过命令ldd --version 查看glibc版本发现低于2.28。
+  >
+  > 解决办法：回退vscode版本1.98。
+
+* 判断开发环境是否搭建完成：
 
 ```cpp
 #include <iostream>
@@ -60,11 +95,11 @@ int main() {
 >
 > 1. 生成密钥对：输入 ` ssh-keygen -t rsa -b 2048 -f C:\Users\YourUsername\.ssh\id_rsa_windows`，一路回车。会生成两个文件，一个公钥`id_rsa_windows.pub`、一个私钥`id_rsa_windows`。
 > 2. 打开`id_rsa_windows.pub`文件，复制上面的内容。
-> 3. 本地ssh公钥复制到Linux端：粘贴到Linux端的/root/.ssh/authorized_keys文件中。
+> 3. 本地ssh公钥复制到Linux端：粘贴到Linux端的`~/.ssh/authorized_keys`文件中。
 > 4. 手动指定私钥位置：打开ssh客户端配置文件`C:\Users\YourUsername\.ssh\config`。把私钥文件路径`  IdentityFile C:\Users\xubenshan\.ssh\id_rsa_windows `粘贴到config中的对应Linux服务器IP的位置。如下图所示。
  ![image-20260218211729266](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260218211729266.png)
 
-> 场景：连接的是实验室的服务器，需要配置下ssh公钥。把本地的公钥也就是`id_rsa.pub`复制到服务器`~/.ssh/authorized_keys` ~是当前用户的主目录。不需要手动指定私钥位置，因为ssh客户端会自动去寻找`id_rsa`文件。
+> 场景：连接的是实验室的服务器，需要配置下ssh公钥。把本地的公钥也就是`id_rsa.pub`复制到服务器`~/.ssh/authorized_keys` ~是当前登录用户的主目录。不需要手动指定私钥位置，因为ssh客户端会自动去寻找`id_rsa`文件。前面之所以要指定，是因为公钥私钥名字是自定义的，不是系统默认的。
 
 使用g++对源文件进行编译：
 
@@ -74,10 +109,6 @@ int main() {
 | -g         | 对源代码进行编译                           |                      |
 | -O         | 在编译链接过程中进行优化处理               |                      |
 | -c         | 只编译，生成汇编文件，不链接成为可执行文件 |                      |
-
-
-
- 
 
 > 拓展：vscode常用快捷键
 >
