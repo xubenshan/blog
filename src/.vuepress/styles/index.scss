@@ -18,4 +18,9 @@ body {
   }
 }
 
+/* Keep mixed-language spacing in headings visually tighter */
+.theme-hope-content :is(h1, h2, h3, h4, h5, h6) {
+  word-spacing: -0.12em;
+}
+
 // place your custom styles here
