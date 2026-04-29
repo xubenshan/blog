@@ -21,15 +21,15 @@ vscode这边只需要安装C++、CMake Tools插件即可。
 # 1.更新包列表: 更新包管理器的包列表，确保你能从最新的仓库中获取软件。
 sudo apt update
 
-# 2.安装 GCC 编译器 : GCC 是 GNU Compiler Collection 的简称，是最常用的C 和 C++ 编译器。
-sudo apt install gcc
+# 2.安装 GCC 编译器 : GCC 是 GNU Compiler Collection 的简称，是最常用的C和C++编译器。
+sudo apt install gcc 
 
 # 3.安装构建工具: build-essential 包提供了很多开发标准C和C++程序所需的工具。
 # 包括 g++（GNU C++ 编译器）、make（用于自动化编译的工具）和一些其他必要的库和开发文件。
 sudo apt install build-essential
 
 # 3.安装调试工具
-sudo apt install gdb
+sudo apt install gdb 
  
 # 3.安装检测内存泄漏工具 valgrind
 sudo apt install valgrind
@@ -95,11 +95,15 @@ int main() {
 >
 > 1. 生成密钥对：输入 ` ssh-keygen -t rsa -b 2048 -f C:\Users\YourUsername\.ssh\id_rsa_windows`，一路回车。会生成两个文件，一个公钥`id_rsa_windows.pub`、一个私钥`id_rsa_windows`。
 > 2. 打开`id_rsa_windows.pub`文件，复制上面的内容。
-> 3. 本地ssh公钥复制到Linux端：粘贴到Linux端的`~/.ssh/authorized_keys`文件中。
+> 3. 把本地ssh公钥复制到Linux端：粘贴到Linux端的`~/.ssh/authorized_keys`文件中。
 > 4. 手动指定私钥位置：打开ssh客户端配置文件`C:\Users\YourUsername\.ssh\config`。把私钥文件路径`  IdentityFile C:\Users\xubenshan\.ssh\id_rsa_windows `粘贴到config中的对应Linux服务器IP的位置。如下图所示。
  ![image-20260218211729266](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260218211729266.png)
 
 > 场景：连接的是实验室的服务器，需要配置下ssh公钥。把本地的公钥也就是`id_rsa.pub`复制到服务器`~/.ssh/authorized_keys` ~是当前登录用户的主目录。不需要手动指定私钥位置，因为ssh客户端会自动去寻找`id_rsa`文件。前面之所以要指定，是因为公钥私钥名字是自定义的，不是系统默认的。
+
+> ![img](https://cdn.nlark.com/yuque/0/2026/png/54308058/1776836727875-88cdc2bb-dde4-4362-aec8-071ccc3baa7a.png)
+>
+> 如果报上述错误，windows下搜索可选功能，安装openssh客户端。（正常来说window10以上系统和mac会自带openssh客户端服务。）
 
 使用g++对源文件进行编译：
 

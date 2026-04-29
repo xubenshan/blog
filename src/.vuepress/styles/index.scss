@@ -2,4 +2,16 @@ body {
   @media (min-width: 1440px) {
     font-size: 16px;
   }
-}// place your custom styles here
+}
+
+/* Desktop: prefer Maple Mono for code blocks */
+@media (min-width: 768px) {
+  pre,
+  code,
+  kbd,
+  samp {
+    font-family: "Maple Mono NF CN", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+}
+
+// place your custom styles here
