@@ -101,7 +101,7 @@ int main() {
 
 > 场景：连接的是实验室的服务器，需要配置下ssh公钥。把本地的公钥也就是`id_rsa.pub`复制到服务器`~/.ssh/authorized_keys` ~是当前登录用户的主目录。不需要手动指定私钥位置，因为ssh客户端会自动去寻找`id_rsa`文件。前面之所以要指定，是因为公钥私钥名字是自定义的，不是系统默认的。
 
-> ![img](https://cdn.nlark.com/yuque/0/2026/png/54308058/1776836727875-88cdc2bb-dde4-4362-aec8-071ccc3baa7a.png)
+> ![image-20260429114828427](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260429114828427.png)
 >
 > 如果报上述错误，windows下搜索可选功能，安装openssh客户端。（正常来说window10以上系统和mac会自带openssh客户端服务。）
 

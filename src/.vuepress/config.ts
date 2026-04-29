@@ -9,8 +9,16 @@ import pangu from "markdown-it-pangu";
 
 const addMixedSpacing = (text: string): string =>
   text
-    .replace(/([\u4e00-\u9fff])([A-Za-z0-9])/g, "$1 $2")
-    .replace(/([A-Za-z0-9])([\u4e00-\u9fff])/g, "$1 $2");
+    // 中文 + 英文技术词块（如 Vue3 / C++ / C# / Node.js）
+    .replace(
+      /([\u4e00-\u9fff])([A-Za-z0-9][A-Za-z0-9+#._-]*)/g,
+      "$1 $2"
+    )
+    // 英文技术词块 + 中文
+    .replace(
+      /([A-Za-z0-9][A-Za-z0-9+#._-]*)([\u4e00-\u9fff])/g,
+      "$1 $2"
+    );
 
 
 // .vuepress/config.ts
