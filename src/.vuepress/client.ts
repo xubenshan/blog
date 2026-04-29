@@ -1,4 +1,4 @@
-import { defineClientConfig } from "vuepress/client";
+import { defineClientConfig } from "@vuepress/client";
 
 const addMixedSpacing = (text: string): string =>
   text
@@ -35,7 +35,9 @@ const applySidebarSpacing = (): void => {
 
 const applyHeadingCompactSpacing = (): void => {
   document
-    .querySelectorAll(".theme-hope-content :is(h1, h2, h3, h4, h5, h6)")
+    .querySelectorAll(
+      ".vp-page :is(h1, h2, h3, h4, h5, h6):not(.vp-sidebar :is(h1, h2, h3, h4, h5, h6))"
+    )
     .forEach((heading) => {
       const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
       let node = walker.nextNode();
