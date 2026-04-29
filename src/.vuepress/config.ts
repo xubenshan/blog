@@ -7,6 +7,11 @@ import { noticePlugin } from '@vuepress/plugin-notice'
 import { copyrightPlugin } from '@vuepress/plugin-copyright'
 import pangu from "markdown-it-pangu";
 
+const addMixedSpacing = (text: string): string =>
+  text
+    .replace(/([\u4e00-\u9fff])([A-Za-z0-9])/g, "$1 $2")
+    .replace(/([A-Za-z0-9])([\u4e00-\u9fff])/g, "$1 $2");
+
 
 // .vuepress/config.ts
 
@@ -34,6 +39,15 @@ export default defineUserConfig({
   ],
   extendsMarkdown: (md) => {
     md.use(pangu);
+  },
+  extendsPage: (page) => {
+    if (typeof page.title === "string") {
+      page.title = addMixedSpacing(page.title);
+    }
+
+    if (typeof page.frontmatter.title === "string") {
+      page.frontmatter.title = addMixedSpacing(page.frontmatter.title);
+    }
   },
 
   theme,
