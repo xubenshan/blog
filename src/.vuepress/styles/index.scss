@@ -4,36 +4,10 @@ body {
   }
 }
 
-/* Fine-grained desktop text fonts:
-   - Latin uses SF/system sans
-   - CJK uses PingFang SC */
-@font-face {
-  font-family: "BlogSystemSans";
-  src: local("SF Pro Text"), local(".SFNSText"), local("-apple-system"), local("Helvetica Neue"), local("Arial");
-  unicode-range:
-    U+0000-00FF,
-    U+0100-024F,
-    U+0259,
-    U+1E00-1EFF,
-    U+2000-206F;
-}
-
-@font-face {
-  font-family: "BlogSystemSans";
-  src: local("PingFang SC"), local("Hiragino Sans GB"), local("Microsoft YaHei");
-  unicode-range:
-    U+2E80-2EFF,
-    U+3000-303F,
-    U+31C0-31EF,
-    U+3400-4DBF,
-    U+4E00-9FFF,
-    U+F900-FAFF;
-}
-
 /* Desktop: prefer Maple Mono for code blocks */
 @media (min-width: 768px) {
   :root {
-    --vp-font: "BlogSystemSans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --vp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
   }
 
   pre,
