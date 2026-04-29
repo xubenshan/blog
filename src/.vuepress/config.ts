@@ -5,6 +5,7 @@ import { docsearchPlugin } from '@vuepress/plugin-docsearch'
 import { searchPlugin } from '@vuepress/plugin-search'
 import { noticePlugin } from '@vuepress/plugin-notice'
 import { copyrightPlugin } from '@vuepress/plugin-copyright'
+import pangu from "markdown-it-pangu";
 
 
 // .vuepress/config.ts
@@ -31,6 +32,9 @@ export default defineUserConfig({
     //   },
     // ],
   ],
+  extendsMarkdown: (md) => {
+    md.use(pangu);
+  },
 
   theme,
   plugins: [
