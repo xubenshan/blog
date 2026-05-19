@@ -4,9 +4,6 @@ icon: house
 title: 主页
 heroImage: /logo.svg
 #bgImage: https://theme-hope-assets.vuejs.press/bg/6-light.svg
-bgImageDark: https://theme-hope-assets.vuejs.press/bg/6-dark.svg
-bgImageStyle:
-  background-attachment: fixed
 heroText: C++转码笔记
 tagline: 「C++学习 + 面试指南」双非本北邮硕通信工程转码之路 
 
@@ -93,11 +90,11 @@ C++可以投的岗位：
 C++和高性能、高并发架构以及底层开发挂钩，而java主要是写业务逻辑，很容易被AI淘汰。
 * 客户端开发：主要是开发window下的桌面软件
 * 嵌入式软件开发
-* 服务器开发（常说的后端开发）
-* 自动驾驶
+* 服务器开发（常说的后端开发 岗位很少）
+* 自动驾驶（自动驾驶技术栈和机器人类似）
 * 音视频开发
 * 机器人软件开发（最前沿的方向是具身智能）
-* AI Infra（比如模型推理优化）
+* AI Infra（比如训练框架、端侧部署、推理优化、算子优化、AI编译器）
 
 ## ::user:: 学习路线
 
@@ -109,6 +106,5 @@ C++和高性能、高并发架构以及底层开发挂钩，而java主要是写�
 
 ## ::regular:heart:: 保持联系
 管理员的联系方式如下：
-
 
 
