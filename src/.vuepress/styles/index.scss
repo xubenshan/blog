@@ -21,3 +21,51 @@ body {
 }
 
 // place your custom styles here
+div[class*="language-"] {
+  --code-mac-header-height: 30px;
+  --code-mac-header-bg: var(--code-c-bg);
+  --code-mac-header-border: color-mix(in srgb, var(--code-c-bg) 90%, var(--vp-c-text) 10%);
+
+  overflow: hidden;
+  padding-top: var(--code-mac-header-height);
+  background-image:
+    radial-gradient(circle at 14px 50%, #ff5f57 0 5px, transparent 5.5px),
+    radial-gradient(circle at 30px 50%, #febc2e 0 5px, transparent 5.5px),
+    radial-gradient(circle at 46px 50%, #28c840 0 5px, transparent 5.5px),
+    linear-gradient(var(--code-mac-header-border), var(--code-mac-header-border)),
+    linear-gradient(var(--code-mac-header-bg), var(--code-mac-header-bg));
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 calc(var(--code-mac-header-height) - 1px),
+    0 0;
+  background-size:
+    100% var(--code-mac-header-height),
+    100% var(--code-mac-header-height),
+    100% var(--code-mac-header-height),
+    100% 1px,
+    100% var(--code-mac-header-height);
+}
+
+[data-theme="dark"] div[class*="language-"] {
+  --code-mac-header-bg: var(--code-c-bg);
+  --code-mac-header-border: color-mix(in srgb, var(--code-c-bg) 86%, var(--vp-c-text) 14%);
+}
+
+div[class*="language-"]::before {
+  top: 0;
+  height: var(--code-mac-header-height);
+  line-height: var(--code-mac-header-height);
+}
+
+div[class*="language-"].line-numbers-mode::after {
+  top: var(--code-mac-header-height);
+  height: calc(100% - var(--code-mac-header-height));
+  border-radius: 0 0 0 var(--code-border-radius);
+}
+
+div[class*="language-"].line-numbers-mode .line-numbers {
+  top: var(--code-mac-header-height);
+}
