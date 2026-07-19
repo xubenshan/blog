@@ -4,7 +4,7 @@ title: C++新特性
 order: 5
 ---
 # C++新特性
-> 参考侯捷的视频以及网上的各种资料。包括C++11 C++14 C++17
+> 参考码农论坛视频、侯捷的视频以及网上的各种资料。包括C++11 C++14 C++17
 
 ## 原始字面量
 
@@ -54,7 +54,78 @@ int main()
 }
 ```
 
+## 统一初始化列表
 
+C++11丰富了大括号的使用范围，用大括号括起来的列表（统一的初始化列表）可以用于所有内置类型和用户自定义类型。使用统一的初始化列表时，可以添加等号（=），也可以不添加：
+
+int x={5};
+
+double y{2.75};
+
+short quar[5]{4,5,2,76,1};
+
+统一的初始化列表也可以用于new表达式中：
+
+int *ar=new int[4]{2,4,6,7};
+
+创建对象时，也可以使用大括号（而不是圆括号）来调用构造函数：
+
+```cpp
+class Girl
+
+{
+
+private:
+
+  int m_bh;
+
+  string m_name;
+
+public:
+
+  Girl(int bh,string name) : m_bh(bh),m_name(name) {}
+
+};
+
+ 
+
+Girl g1(3, "西施");   // C++98的风格。
+
+Girl g2={5, "冰冰"};  // C++11的风格。
+
+Girl g3{8, "幂幂"};   // C++11的风格。
+```
+
+STL容器提供了将initializer_list模板类作为参数的构造函数：
+
+```cpp
+vector<int> v1(10);  // 把v1初始化为10个元素，值为0。
+
+vector<int> v2{10};  // 把v2初始化为1个元素，这个元素的值是10。
+
+vector<int> v2{3,5,8};  // 把v3初始化为3个元素，值分别是3、5、8。
+```
+
+头文件<initializer_list>提供了对模板类initializer_list的支持，这个类包含成员函数begin()和end()。除了用于构造函数外，还可以将initializer_list用于常规函数的参数：
+
+```cpp
+#include <iostream>
+#include <initializer_list> //统一初始化列表头文件 
+double sum(std::initializer_list<double> il)
+
+{
+  double total = 0;
+  for (auto it = il.begin(); it != il.end(); it++)
+    total = total + *it;
+  return total;
+}
+int main()
+{
+  // double total = sum(  3.14, 5.20, 8  );   // 错误，如果没有大括号，这是三个参数。
+  double total = sum({ 3.14, 5.20, 8 });     // 正确，有大括号，这是一个参数。
+  std::cout << "total=" << total << std::endl;
+}
+```
 
 ## auto自动推导类型
 
@@ -92,6 +163,193 @@ decltype推导规则（按步骤）：
 
 如果需要多次使用decltype，可以结合typedef和using。
 
+```cpp
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 10;
+    const int b = 20;
+    int& c = a;
+
+    decltype(a) x = 1;   // x 的类型是 int
+    decltype(b) y = 2;   // y 的类型是 const int
+    decltype(c) z = a;   // z 的类型是 int&
+
+    x = 100;
+    // y = 200;          // 错误，y 是 const int
+    z = 300;             // 修改的是 a
+
+    cout << a << endl;   // 300
+}
+```
+
+```cpp
+#include <iostream>
+using namespace std;
+
+int getInt() {
+    cout << "getInt 被调用了" << endl;
+    return 10;
+}
+
+double getDouble() {
+    return 3.14;
+}
+
+int main() {
+    decltype(getInt()) a = 100;       // a 是 int
+    decltype(getDouble()) b = 3.14;   // b 是 double
+
+    cout << a << endl;
+    cout << b << endl;
+} //只是分析函数的返回值类型是 int，并不会真的调用函数。
+```
+
+```cpp
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 10;
+
+    decltype(a) x = a;    // x 是 int
+    decltype((a)) y = a;  // y 是 int& 加括号 变成了左值表达式。
+
+    x = 100;  // 只修改 x，不影响 a
+    y = 200;  // y 是 a 的引用，会修改 a
+
+    cout << a << endl;   // 200
+}
+```
+
+```cpp
+#include <iostream>
+using namespace std;
+
+int main() {
+    int arr[3] = {1, 2, 3};
+
+    decltype(arr[0]) x = arr[0];  // 左值表达式会被推导成引用。arr[0]是左值表达式 所以x 是 int&
+
+    x = 100;
+
+    cout << arr[0] << endl;       // 100
+}
+```
+
+
+
+## 模版别名
+
+![image-20260612184213418](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260612184213418.png)
+
+## 强类型枚举
+
+## 基于范围的for循环
+
+## 杂项
+
+final关键字：限制某个类不能被继承，或虚函数不能被重写。 final关键字放到类名或虚函数名后面。
+
+override关键字放在成员函数的后面，表示重写基类的虚函数，提高代码可读性。
+
+### constexpr
+
+constexpr关键字 ：由于const关键字有两种语义：只读变量 修饰常量。语义不够清晰。C++11标准为了解决const关键字的双重语义问题，保留了const表示“只读”的语义，而将“常量”的语义划分给了新添加的constexpr关键字。
+
+```cpp
+void func(const int len1)
+{
+    // len1是只读变量，在函数内部不允许修改len1的值，它不是常量。
+    int array1[len1]={0};        // VS会报错，Linux平台的数组长度支持变量，不会报错。
+
+    const int len2 = 8; //len2 是 const int，初始化后不能再改。
+    int array2[len2]={0};      // 正确，len2是编译期常量。
+}
+int main()
+{
+	func(1);
+  return 0;
+}
+```
+
+在C++中自定义的类，编译器会默认生成一些成员函数：
+
+无参构造函数 拷贝构造函数 拷贝赋值函数 移动构造函数 移动赋值函数 析构函数
+
+=default表示启用默认函数。
+
+=delete表示禁用默认函数。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+class Girl
+{
+private:
+    int m_bh = 20;                  // 年龄。
+    string m_name = "美女";  // 姓名。
+    char m_xb = 'X';               // 性别。
+public:
+    Girl() = default;                          // 启用默认构造函数。
+    Girl(int bh, string name) : m_bh(bh), m_name(name) {}
+    Girl(const Girl& g) = delete;      // 删除拷贝构造函数。
+    void show() { cout << "bh=" << m_bh << ",m_name=" << m_name << endl; }
+};
+
+int main()
+{
+    Girl g1;
+    g1.show();
+    // Girl g2 = g1;            // 错误，拷贝构造函数已删除。
+}
+```
+
+
+
+### 数值类型和字符串类型相互转换
+
+传统方法用sprintf()和snprintf()函数把数值转换为char*字符串；用atoi()、atol()、atof()把char*字符串转换为数值。
+
+使用to_string()函数可以将各种数值类型转换为string字符串类型，这是一个重载函数，在头文件 <string>中声明，函数原型如下：
+
+```cpp
+string to_string (int val);
+string to_string (long val);
+string to_string (long long val);
+string to_string (unsigned val);
+string to_string (unsigned long val);
+string to_string (unsigned long long val);
+string to_string (float val);
+string to_string (double val);
+string to_string (long double val);
+```
+
+```cpp
+int                 stoi( const string& str, size_t* pos = nullptr, int base = 10 );//str代表需要转换的字符串；传出参数，存放从哪个字符开始无法继续解析的位置，例如：123a45, 传出的位置将为3。base：若base为0，则自动检测数值进制：若前缀为0，则为八进制，若前缀为0x或0X，则为十六进制，否则为十进制。
+long               stol( const string& str, size_t* pos = nullptr, int base = 10 );
+long long          stoll( const string& str, size_t* pos = nullptr, int base = 10 );
+unsigned long      stoul( const string& str, size_t* pos = nullptr, int base = 10 );
+unsigned long long stoull( const string& str, size_t* pos = nullptr, int base = 10 );
+float               stof( const string& str, size_t* pos = nullptr );
+double             stod( const string& str, size_t* pos = nullptr );
+long double        stold( const string& str, size_t* pos = nullptr );
+```
+
+```cpp
+string str="123a45";
+size_t pos;
+int val = stoi(str, &pos, 10);
+cout << "val=" << val << endl;          // 输出123
+cout << "pos=" << pos << endl;       // 输出3
+```
+
+
+
+
+
 ## lambda函数
 
 lambda函数是C++11标准新增的语法糖，也称为lambda表达式或匿名函数。
@@ -104,6 +362,21 @@ lambda函数是C++11标准新增的语法糖，也称为lambda表达式或匿名
 * 捕获列表：通过捕获列表，lambda函数可以访问父作用域中的非静态局部变量（静态局部变量可以直接访问，不能访问全局变量）。捕获方式可以是值捕获和引用捕获。值捕获的变量，在函数体内部不能修改变量的值。
 
 ![image-20260301171923645](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260301171923645.png)
+
+值捕获：与传递参数类似，采用值捕获的前提是变量可以拷贝。
+
+与传递参数不同，变量的值是在lambda函数创建时拷贝，而不是调用时拷贝。
+
+例如：
+
+```cpp
+ size_t v1 = 42;
+ auto f = [ v1 ]  { return v1; }; // 使用了值捕获，将v1拷贝到名为f的可调用对象。
+ v1 = 0;
+ auto j = f();   // j为42，f保存了我们创建它是v1的拷贝。
+```
+
+由于被捕获的值是在lambda函数创建时拷贝，因此在随后对其修改不会影响到lambda内部的值。
 
 * 函数选项：在lambda函数中，如果希望修改值捕获变量的值，可以加mutable选项，但是，在lambda函数的外部，变量的值不会被修改。
 
@@ -132,80 +405,11 @@ int main() {
 }
 ```
 
-lambda函数的本质：C++ 中的 Lambda 表达式本质上是一个**匿名的函数对象。 当我们写下一个 Lambda 时，编译器会在后台默默为我们生成一个未命名的类。这个类**重载了 `operator()`**（函数调用运算符）。
+lambda函数的本质：C++ 中的 Lambda 表达式本质上是一个**匿名的函数对象。 当我们写下一个 Lambda 时，编译器会在后台默默为我们生成一个未命名的类。这个类**重载了 `operator()`（函数调用运算符）。
 
 - 如果我们使用了**捕获列表**，编译器就会在这个匿名类中生成对应的**私有成员变量**，并在类的构造函数中将外部变量初始化给这些成员。
 - 按值捕获，就是成员变量的值拷贝；按引用捕获，成员变量就是指针或引用。
-- 由于生成的 `operator()` 默认是 `const` 成员函数，所以按值捕获的变量在内部无法修改，这就是为什么需要 `mutable` 关键字来取消这个 `const` 限制。
-
-## 移动构造函数
-
-复制构造和移动构造的区别：
-
-<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163244970.png" alt="image-20251230163244970" style="zoom: 33%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163257764.png" alt="image-20251230163257764" style="zoom: 33%;" />
-
-复制构造的对象各自占有独立的堆内存，而移动构造，只有一个堆内存。复制构造函数要将临时对象的资源复制到目标对象。而移动构造函数要将临时对象的资源移动到目标对象。
-
-```cpp
-#include <iostream>
-#include <cstring>
-
-class MyString {
-public:
-    char* data;
-
-    MyString(const char* str) {
-        int length = strlen(str);
-        data = new char[length + 1];
-        strcpy(data, str);
-    }
-
-    ~MyString() {
-        delete[] data;
-    }
-
-    // 移动构造函数
-    MyString(MyString&& other) noexcept {
-        data = other.data;
-        other.data = nullptr;
-    }
-};
-
-int main() {
-    MyString str1("Hello");
-    MyString str2 = std::move(str1);  // move函数把str1转化为右值引用
-
-    std::cout << str2.data << std::endl;  // 输出 "Hello"
-
-    return 0;
-}
-```
-
-移动构造函数与其他构造函数相比，参数类型前面多了一个`&&`，表示右值引用。在C++11之前，我们无法直接访问临时对象（右值），因此无法定义移动构造函数。但是通过引入右值引用，我们可以获取到临时对象，并将其资源移动到目标对象中。
-
-在移动构造函数中，通常会执行以下操作：
-
-- 将源对象的资源指针或资源句柄复制给目标对象，避免深拷贝。
-- 将源对象的资源指针或资源句柄置为`nullptr`，以确保源对象析构时不会释放资源。
-
-拷贝构造函数的参数是左值引用。
-
-
-
-## 可变参数模板
-
- 基本语法：
-
-```cpp
-template<typename... Args>//Args是模板参数包
-void show(const Args&... args)//args是函数参数包
-{
-	....
-}
-
-```
-
-
+- 由于生成的 `operator()` 默认是 `const` 成员函数，所以按值捕获的变量在内部无法修改，这就是为什么需要 `mutable` 关键字来取消这个 `const` 限制。注意修改的是捕获变量的副本，外面的变量不会发生变化。
 
 ## 委托构造函数和继承构造函数
 
@@ -308,6 +512,58 @@ int main()
 }
 ```
 
+## 移动构造函数
+
+复制构造和移动构造的区别：
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163244970.png" alt="image-20251230163244970" style="zoom: 33%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251230163257764.png" alt="image-20251230163257764" style="zoom: 33%;" />
+
+复制构造的对象各自占有独立的堆内存，而移动构造，只有一个堆内存。复制构造函数要将临时对象的资源复制到目标对象。而移动构造函数要将临时对象的资源移动到目标对象。
+
+```cpp
+#include <iostream>
+#include <cstring>
+
+class MyString {
+public:
+    char* data;
+
+    MyString(const char* str) {
+        int length = strlen(str);
+        data = new char[length + 1];
+        strcpy(data, str);
+    }
+
+    ~MyString() {
+        delete[] data;
+    }
+
+    // 移动构造函数
+    MyString(MyString&& other) noexcept {
+        data = other.data;
+        other.data = nullptr;
+    }
+};
+
+int main() {
+    MyString str1("Hello");
+    MyString str2 = std::move(str1);  // move函数把str1转化为右值引用
+
+    std::cout << str2.data << std::endl;  // 输出 "Hello"
+
+    return 0;
+}
+```
+
+移动构造函数与其他构造函数相比，参数类型前面多了一个`&&`，表示右值引用。在C++11之前，我们无法直接访问临时对象（右值），因此无法定义移动构造函数。但是通过引入右值引用，我们可以获取到临时对象，并将其资源移动到目标对象中。
+
+在移动构造函数中，通常会执行以下操作：
+
+- 将源对象的资源指针或资源句柄复制给目标对象，避免深拷贝。
+- 将源对象的资源指针或资源句柄置为`nullptr`，以确保源对象析构时不会释放资源。
+
+拷贝构造函数的参数是左值引用。
+
 
 
 ## 移动语义
@@ -397,6 +653,8 @@ print(std::move(x)); // 传入右值，param 变成了右值引用 (int&&)
 
 移动语义对于拥有资源（如内存、文件句柄）的对象有效，如果是基本类型，使用移动语义没有意义。
 
+移动语义的基本示例：
+
 ```cpp
 #include <iostream>
 using namespace std;
@@ -474,9 +732,56 @@ int main()
 }
 ```
 
-
-
 ## 完美转发
+
+```cpp
+#include <iostream>
+using namespace std;
+
+void func1(int& ii) {        // 如果参数是左值，调用此函数。
+    cout << "参数是左值=" << ii << endl;
+}
+
+void func1(int&& ii) {     // 如果参数是右值，调用此函数。
+    cout << "参数是右值=" << ii << endl;
+}
+
+
+int main()
+{
+    int ii = 3;
+    func1(ii);       // 实参是左值。
+    func1(8);       // 实参是右值。
+}
+```
+
+如果定义一个func2函数，在func2中调用func1。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+void func1(int& ii) {        // 如果参数是左值，调用此函数。
+    cout << "参数是左值=" << ii << endl;
+}
+
+void func1(int&& ii) {     // 如果参数是右值，调用此函数。
+    cout << "参数是右值=" << ii << endl;
+}
+
+void func2(int ii)
+{
+		fuc1(ii);
+}
+int main()
+{
+    int ii = 3;
+    func2(ii);       // 实参是左值。
+    func2(8);       // 实参是右值。
+}
+```
+
+main函数把参数传给func2时有左值和右值之分。我们希望func2把参数ii传给fuc1的时候也有左值和右值之分。显然当前这个代码是不行的。8传给fuc2的形参，8赋值给ii，传到fuc1是左值。
 
 在函数模板中，可以将参数“完美”的转发给其它函数。所谓完美，即不仅能准确的转发参数的值，还能保证被转发参数的左、右值属性不变。
 
@@ -499,26 +804,17 @@ void func1(int& ii) {        // 如果参数是左值，调用此函数。
 void func1(int&& ii) {     // 如果参数是右值，调用此函数。
     cout << "参数是右值=" << ii << endl;
 }
-
-// 1）如果模板中（包括类模板和函数模板）函数的参数书写成为T&& 参数名，
-// 那么，函数既可以接受左值引用，又可以接受右值引用。
-// 2）提供了模板函数std::forward<T>(参数) ，用于转发参数，
-// 如果参数是一个右值，转发之后仍是右值引用；如果 参数是一个左值，转发之后仍是左值引用。
-template<typename TT>
 //void func(TT&& ii)
 //{
 //    func1(ii);
 //} 这样是不行的，实参是ii时，TT被推到成int& 形参的类型时左值引用。实参是8时，TT被推导成int，形参的类型是右值引用。但是传给func1时，为什么没有调用右值引用版本的func1？
 /*核心原因：有名字的右值引用也是左值。根据 C++ 的规则，只要一个表达式有名字，它就是左值。 因为你可以通过这个名字 ii 多次访问这个对象，甚至取它的地址。而右值（如数字 8）是临时的、没有名字的。
-
 因此，当你直接调用 func1(ii) 时：
-
 编译器看到的实参是 ii 这个变量名。
-
 ii 是一个左值（尽管它的类型是右值引用）。
-
 编译器会优先匹配 func1(int&) 这个左值版本的函数。*/
-void func(TT&& ii)
+template<typename TT>
+void func(TT&& ii) //如果写成void func(TT&& ii, int&& j) 第二个参数只能接受右值。
 {
     func1(forward<TT>(ii));
 }
@@ -530,6 +826,95 @@ int main()
     func(8);       // 实参是右值。
 }
 ```
+
+## 可变参数模板
+
+可变参数模版是C++11新增的最强大的特性之一，它对参数进行了泛化，能支持任意个数、任意数据类型的参数。
+
+ 基本语法：
+
+```cpp
+template<typename... Args>//Args是模板参数包 比如你调用：show(1, 3.14, "hello");编译器会推导出Args = int, double, const char*。
+ void show(const Args&... args)//args是函数参数包 会展开成const int& arg1,
+//const double& arg2,
+//const char* const& arg3
+ { 
+   cout << sizeof...(args) << endl; // sizeof...(args) 可以获取参数包中参数的个数。
+ }
+
+
+```
+
+如果想要依次输出参数包的内容，不能直接cout<<args<<endl;。C++11需要用递归来实现：
+
+```cpp
+#include <iostream>
+using namespace std;
+
+void show() {
+    cout << endl;
+}
+
+template<typename T, typename... Args>
+void show(const T& first, const Args&... rest) {
+    cout << first << " ";
+    show(rest...);
+}
+
+int main() {
+    show(1, 3.14, "hello");
+}
+```
+
+```cpp
+#include <iostream>
+#include <thread>
+using namespace std;
+
+template <typename T>
+void show(T girl)      // 向超女表白的函数，参数可能是超女编号，也可能是姓名，所以用T。
+{
+	cout << "亲爱的" << girl << "，我是一只傻傻鸟。\n";
+}
+
+// 递归终止时调用的非模板函数，函数名要与展开参数包的递归函数模板相同。
+void print() //没有参数
+{
+	cout << "递归终止。\n";
+}
+
+// 展开参数包的递归函数模板。
+template <typename T, typename ...Args>
+void print(T arg, Args... args) //第一个参数是本次展开的参数 第二个参数是尚未展开的参数
+{
+	//cout << "参数： " << arg << endl;         // 显示本次展开的参数。
+
+	show(arg);        // 把参数用于表白。
+
+	//cout << "还有" << sizeof...(args) << "个参数未展开。" << endl;  // 显示未展开变参的个数。
+
+	print(args...);     // 继续展开参数。
+}
+
+template <typename...Args>
+void func(const string& str, Args...args)   // 除了可变参数，还可以有其它常规参数。
+{
+	cout << str << endl;    // 表白之前，喊句口号。
+
+	print(args...);    // 展开可变参数包。
+
+	cout << "表白完成。\n";
+}
+
+int main(void)
+{
+	//print("金莲", 4, "西施");   
+	//print("冰冰", 8, "西施", 3);
+	func("我是绝世帅歌。", "冰冰", 8, "西施", 3);  // "我是绝世帅歌。"不是可变参数，其它的都是。
+}
+```
+
+
 
 ## 智能指针
 
@@ -1041,4 +1426,743 @@ int main()
     cout << "耗时: " << dt.count() << "纳秒（"<<(double)dt.count()/(1000*1000*1000)<<"秒）";
 }
 ```
+
+## 可调用对象的绑定器和包装器
+
+在C++中，可以像函数一样调用的有：普通函数、类的静态成员函数、仿函数、lambda函数、类的非静态成员函数、可被转换为函数的类的对象，统称可调用对象或函数对象。（只要一个东西可以像函数一样用 `()` 调用，它就可以叫**可调用对象**。）
+
+可调用对象有类型，可以用指针存储它们的地址，可以被引用（类的成员函数除外）
+
+普通函数：普通函数类型可以声明函数、定义函数指针和函数引用，但是，不能定义函数的实体。
+
+C++中函数是一种数据类型，函数的实体被看成对象，是可以被调用的对象，也叫函数对象。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+using Fun = void (int, const string&);  // 普通函数类型的别名。
+Fun show;        // 声明普通函数。
+
+
+int main()
+{
+	show(1, "我是一只傻傻鸟。");					// 直接调用普通函数。
+
+	void(*fp1)(int, const string&) = show;	// 声明函数指针，指向普通函数。 代表fp1 = show
+	void(&fr1)(int, const string&) = show;	// 声明函数引用，引用普通函数。
+	fp1(2, "我是一只傻傻鸟。");						// 用函数指针调用普通函数。
+	fr1(3, "我是一只傻傻鸟。");						// 用函数引用调用普通函数。
+
+	Fun* fp2 = show;										// 声明函数指针，指向普通函数。
+	Fun& fr2 = show;									// 声明函数引用，引用普通函数。
+	fp2(4, "我是一只傻傻鸟。");						// 用函数指针调用普通函数。
+	fr2(5, "我是一只傻傻鸟。");						// 用函数引用调用普通函数。
+}
+
+// 定义普通函数
+void show(int bh, const string& message) {  
+	cout << "亲爱的" << bh << "，" << message << endl;
+}
+
+// 以下代码是错误的，不能用函数类型定义函数的实体。
+//Func show1 {
+//	cout << "亲爱的" << bh << "，" << message << endl;
+//}
+```
+
+类的静态成员函数：类的静态成员函数和普通函数本质上是一样的，把普通函数放在类中而已。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+using Fun = void (int, const string&);  // 普通函数类型的别名。
+
+struct AA	// 类中有静态成员函数。
+{
+	static void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+int main()
+{
+	AA::show(1, "我是一只傻傻鸟。");					// 直接调用静态成员函数。
+
+	void(*fp1)(int, const string&) = AA::show;	// 用函数指针指向静态成员函数。
+	void(&fr1)(int, const string&) = AA::show;	// 引用静态成员函数。
+	fp1(2, "我是一只傻傻鸟。");						// 用函数指针调用静态成员函数。
+	fr1(3, "我是一只傻傻鸟。");						// 用函数引用调用静态成员函数。
+
+	Fun* fp2 = AA::show;										// 用函数指针指向静态成员函数。
+	Fun& fr2 = AA::show;									// 引用静态成员函数。
+	fp2(4, "我是一只傻傻鸟。");						// 用函数指针调用静态成员函数。
+	fr2(5, "我是一只傻傻鸟。");						// 用函数引用调用静态成员函数。
+}
+```
+
+仿函数：仿函数的本质是类，调用的代码像函数。仿函数的类型就是类的类型。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+struct BB	// 仿函数。重载了括号运算符的类
+{
+	void operator()(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+int main()
+{
+	BB bb;
+	bb(11, "我是一只傻傻鸟。");		// 用对象调用仿函数。 相当于bb()(11, "我是一只傻傻鸟。")
+	BB()(12, "我是一只傻傻鸟。");		// 用匿名对象调用仿函数。
+
+	BB& br = bb;           		// 引用函数
+	br(13, "我是一只傻傻鸟。");		// 用对象的引用调用仿函数。
+}
+```
+
+lambda函数：lambda函数的本质是仿函数，仿函数的本质是类。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+int main()
+{
+	// 创建lambda对象。
+	auto lb = [](int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	};
+
+	auto& lr = lb;  // 引用lambda对象。
+
+	lb(1, "我是一只傻傻鸟。");		// 用lambda对象调用仿函数。
+	lr(2, "我是一只傻傻鸟。");		// 用lambda对象的引用调用仿函数。
+}
+```
+
+类的非静态成员函数：类的非静态成员函数有地址，但是，只能通过类的对象才能调用它，所以，C++对它做了特别处理。
+
+类的非静态成员函数只有指针类型，没有引用类型，不能引用。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+struct CC	// 类中有普通成员函数。
+{
+	void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+int main()
+{
+	CC cc;
+	cc.show(14, "我是一只傻傻鸟。"); 
+
+	void (CC::* fp11)(int, const string&) = &CC::show;		// 定义类的成员函数的指针。&必须加
+	(cc.*fp11)(15, "我是一只傻傻鸟。");									// 用类的成员函数的指针调用成员函数。
+
+	using pFun = void (CC::*)(int, const string&);		// 类成员函数的指针类型。
+	pFun fp12 = &CC::show;										// 让类成员函数的指针指向类的成员函数的地址。（指向的不是成员函数）
+	(cc.*fp12)(16, "我是一只傻傻鸟。");							// 用类成员函数的指针调用类的成员函数。
+}
+```
+
+可被转换为函数指针的类对象：类可以重载类型转换运算符operator 数据类型() ，如果数据类型是函数指针或函数引用类型，那么该类实例也将成为可调用对象。它的本质是类，调用的代码像函数。在实际开发中，意义不大。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+// 定义函数
+void show(int bh, const string& message) {
+	cout << "亲爱的" << bh << "，" << message << endl;
+}
+
+struct DD		// 可以被转换为函数指针的类。
+{
+	using Fun = void (*)(int, const string&);
+	operator Fun() {
+		return show;	// 返回普通函数。
+	}
+};
+
+int main()
+{
+	DD dd;
+	dd(17, "我是一只傻傻鸟。");						// 可以被转换为函数指针的类对象。
+}	
+```
+
+### 包装器fuction
+
+fuction可以统一保存各种可调用对象。
+
+std::function模板类是一个通用的可调用对象的包装器，用简单的、统一的方式处理可调用对象。
+
+template<class _Fty>
+
+class function……
+
+_Fty是可调用对象的类型，格式：返回类型(参数列表)。
+
+包含头文件：#include <functional>
+
+比如说：`std::function<int(int, int)> f;` 表示f 可以保存任何“接收两个 int，返回 int”的可调用对象。
+
+注意：
+
+ 重载了bool运算符，用于判断是否包装了可调用对象。
+
+ 如果std::function对象未包装可调用对象，使用std::function对象将抛出std::bad_function_call异常。
+
+```cpp
+#include <iostream>
+#include <functional>
+using namespace std;
+
+// 普通函数
+void show(int bh, const string& message) {
+	cout << "亲爱的" << bh << "，" << message << endl;
+}
+
+struct AA	// 类中有静态成员函数。
+{
+	static void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct BB	// 仿函数。
+{
+	void operator()(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct CC	// 类中有普通成员函数。
+{
+	void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct DD		// 可以被转换为普通函数指针的类。
+{
+	using Fun = void (*)(int, const string&);    // 函数指针的别名。
+	operator Fun() {
+		return show;	// 返回普通函数show的地址。
+	}
+};
+
+int main()
+{
+	using Fun = void(int, const string&);  // 函数类型的别名。
+
+	// 普通函数。
+	void(*fp1)(int, const string&) = show;	// 声明函数指针，指向函数对象。
+	fp1(1, "我是一只傻傻鸟。");						// 用函数指针调用普通函数。
+	function<void(int, const string&)> fn1 = show;    // 包装普通全局函数show。
+	fn1(1, "我是一只傻傻鸟。");										// 用function对象调用普通全局函数show。
+
+	// 类的静态成员函数。
+	void(*fp3)(int, const string&) = AA::show;	// 用函数指针指向类的静态成员函数。
+	fp3(2, "我是一只傻傻鸟。");							// 用函数指针调用类的静态成员函数。
+	function<void(int, const string&)> fn3 = AA::show;		// 包装类的静态成员函数。
+	fn3(2, "我是一只傻傻鸟。");												// 用function对象调用类的静态成员函数。
+
+	// 仿函数。
+	BB bb;
+	bb(3, "我是一只傻傻鸟。");		// 用仿函数对象调用仿函数。
+	function<void(int, const string&)> fn4 = BB();		// 包装仿函数。BB()是匿名对象。 
+	fn4(3, "我是一只傻傻鸟。");										// 用function对象调用仿函数。
+
+	// 创建lambda对象。
+	auto lb = [](int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	};
+	lb(4, "我是一只傻傻鸟。");          // 调用lambda函数。
+	function<void(int, const string&)> fn5 = lb;			// 包装lamba函数。
+	fn5(4, "我是一只傻傻鸟。");										// 用function对象调用lamba函数。
+
+	// 类的非静态成员函数。 类成员函数必须用类的对象名才能调用。通过参数传入类对象。
+	CC cc;
+	void (CC:: * fp11)(int, const string&) = &CC::show;		// 定义类成员函数的指针。
+	(cc.*fp11)(5, "我是一只傻傻鸟。");									// 用类成员函数的指针调用类的成员函数。
+	function<void(CC&,int, const string&)> fn11 = &CC::show;	// 包装成员函数。
+	fn11(cc,5, "我是一只傻傻鸟。");											// 用function对象调用成员函数。
+
+	// 可以被转换为函数指针的类对象。
+	DD dd;
+	dd(6, "我是一只傻傻鸟。");						// 用可以被转换为函数指针的类对象调用普通函数。
+	function<void(int, const string&)> fn12 = dd;			// 包装可以被转换为函数指针的类。
+	fn12(6, "我是一只傻傻鸟。");										// 用function对象调用它。
+
+	function<void(int, const string&)> fx=dd;
+	try {
+		if (fx) fx(6, "我是一只傻傻鸟。"); //使用fuction之前做一个判断，就不会抛出异常了。如果去掉if会抛出异常。
+	}
+	catch (std::bad_function_call e) {
+		cout << "抛出了std::bad_function_call异常。";
+	}
+}
+```
+
+### 绑定器bind
+
+std::bind()模板函数是一个通用的函数适配器（绑定器），它用一个可调用对象及其参数，生成一个新的可调用对象，以适应模板。（为了适配模版，把一个函数对象改成一个新的函数对象。）
+
+bind返回的是fuction模版类的对象。
+
+包含头文件：#include <functional>
+
+函数原型：
+
+template< class Fx, class... Args >
+
+  function<> bind (Fx&& fx, Args&...args);
+
+Fx：需要绑定的可调用对象（可以是前两节课介绍的那六种，也可以是function对象）。
+
+args：绑定参数列表，可以是左值、右值和参数占位符std::placeholders::_n，如果参数不是占位符，缺省为值传递，std:: ref(参数)则为引用传递。
+
+std::bind()返回std::function的对象。
+
+std::bind()的本质是仿函数。
+
+```cpp
+#include <iostream>
+#include <functional>
+using namespace std;
+
+// 普通函数
+void show(int bh, const string& message) {
+	cout << "亲爱的" << bh << "号，" << message << endl;
+}
+
+int main()
+{
+	function<void(int, const string&)> fn1 = show;
+	function<void(int, const string&)> fn2 = bind(show, placeholders::_1, placeholders::_2); //后两个参数是占位符。
+	fn1(1, "我是一只傻傻鸟。");
+	fn2(1, "我是一只傻傻鸟。");
+function<void(const string&, int)> fn3 = show //会报错 fuction对象要求的类型和show函数类型不一样
+	function<void(const string&, int)> fn3 = bind(show, placeholders::_2, placeholders::_1);
+	fn3("我是一只傻傻鸟。", 1);
+	function<void(const string&)> fn4 = bind(show, 3, placeholders::_1);
+	fn4("我是一只傻傻鸟。");
+
+	function<void(int, const string&,int)> fn5 = bind(show, placeholders::_1, placeholders::_2);
+	fn5(1, "我是一只傻傻鸟。", 88);
+}
+```
+
+绑定6种可调用对象：	
+
+```cpp
+#include <iostream>
+#include <functional>
+using namespace std;
+
+// 普通函数
+void show(int bh, const string& message) {
+	cout << "亲爱的" << bh << "，" << message << endl;
+}
+
+struct AA	// 类中有静态成员函数。
+{
+	static void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct BB	// 仿函数。
+{
+	void operator()(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct CC	// 类中有普通成员函数。
+{
+	void show(int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	}
+};
+
+struct DD		// 可以被转换为普通函数指针的类。
+{
+	using Fun = void (*)(int, const string&);    // 函数指针的别名。
+	operator Fun() {
+		return show;	// 返回普通函数show的地址。
+	}
+};
+
+int main()
+{
+	// 普通函数。
+	function<void(int, const string&)> fn1 = bind(show, placeholders::_1, placeholders::_2);    // 绑定普通全局函数show。
+	fn1(1, "我是一只傻傻鸟。");										// 用function对象调用普通全局函数show。
+
+	// 类的静态成员函数。
+	function<void(int, const string&)> fn3 = bind(AA::show, placeholders::_1, placeholders::_2);		// 绑定类的静态成员函数。
+	fn3(2, "我是一只傻傻鸟。");												// 用function对象调用类的静态成员函数。
+
+	// 仿函数。
+	function<void(int, const string&)> fn4 = bind(BB(), placeholders::_1, placeholders::_2);			// 绑定仿函数。
+	fn4(3, "我是一只傻傻鸟。");										// 用function对象调用仿函数。
+
+	// 创建lambda对象。
+	auto lb = [](int bh, const string& message) {
+		cout << "亲爱的" << bh << "，" << message << endl;
+	};
+	function<void(int, const string&)> fn5 = bind(lb, placeholders::_1, placeholders::_2);			// 绑定lamba函数。
+	fn5(4, "我是一只傻傻鸟。");										// 用function对象调用lamba函数。
+
+	// 类的非静态成员函数。
+	CC cc;
+  //
+	//function<void(CC&, int, const string&)> fn11 = bind(&CC::show, placeholders::_1, placeholders::_2, placeholders::_3);		// 绑定成员函数。
+	//fn11(cc, 5, "我是一只傻傻鸟。");		
+  // 在实际开发中 用fuction调用的时候 不希望把对象传进去。所以可以提前将对象传给bind函数。 
+  // 用function对象调用成员函数。
+	function<void(int, const string&)> fn11 = bind(&CC::show,&cc,placeholders::_1, placeholders::_2);		// 绑定成员函数。
+	fn11(5, "我是一只傻傻鸟。");											// 用function对象调用成员函数。
+
+	// 可以被转换为函数指针的类对象。
+	DD dd;
+	function<void(int, const string&)> fn12 = bind(dd, placeholders::_1, placeholders::_2);			// 绑定可以被转换为函数指针的类。
+	fn12(6, "我是一只傻傻鸟。");										// 用function对象调用它。
+}
+```
+
+当然可以用C++的auto 来代替function类型。比如：
+
+```cpp
+// function<void(int, const string&)> fn5 = bind(lb, placeholders::_1, placeholders::_2);			// 绑定lamba函数。	
+auto fn5 = bind(lb, placeholders::_1, placeholders::_2);			// 绑定lamba函数。
+fn5(4, "我是一只傻傻鸟。");		
+```
+
+### 经典应用场景
+
+可变函数和参数、回调函数、取代虚函数
+
+```cpp
+#include <iostream>
+#include <thread>
+#include <functional>        
+using namespace std;
+
+void show0() {  // 普通函数。
+	cout << "亲爱的，我是一只傻傻鸟。\n";
+}
+
+void show1(const string& message) {  // 普通函数。
+	cout << "亲爱的，" << message << endl;
+}
+
+struct CC	// 类中有普通成员函数。
+{
+	void show2(int bh, const string& message) {
+		cout << "亲爱的" << bh << "号，" << message << endl;
+	}
+};
+
+int main()
+{
+	show(show0);
+	show(show1,"我是一只傻傻鸟。");
+	CC cc;
+	show(&CC::show2,&cc, 3,"我是一只傻傻鸟。");
+
+	//thread t1(show0);
+	//thread t2(show1,"我是一只傻傻鸟。");
+	//CC cc;
+	//thread t3(&CC::show2,&cc, 3,"我是一只傻傻鸟。");
+	//t1.join();
+	//t2.join();
+	//t3.join();
+}
+```
+
+如何实现用一个show可以调用show0、show1、show2函数呢，就像下面代码所示：
+
+```cpp
+	show(show0);
+	show(show1,"我是一只傻傻鸟。");
+	CC cc;
+	show(&CC::show2,&cc, 3,"我是一只傻傻鸟。");
+```
+
+可以用模版函数+fuction：
+
+```cpp
+#include <iostream>
+#include <thread>
+#include <functional>        
+using namespace std;
+
+void show0() {  // 普通函数。
+	cout << "亲爱的，我是一只傻傻鸟。\n";
+}
+
+void show1(const string& message) {  // 普通函数。
+	cout << "亲爱的，" << message << endl;
+}
+
+struct CC	// 类中有普通成员函数。
+{
+	void show2(int bh, const string& message) {
+		cout << "亲爱的" << bh << "号，" << message << endl;
+	}
+};
+
+/* template<typename Fn, typename...Args>
+void show(Fn fn, Args...args) 
+{
+	cout << "表白前的准备工作......\n";
+
+	auto f = bind(fn, args...);
+	f();
+
+	cout << "表白完成。\n";
+} 如果实参是右值，传着传着就会丢失右值的属性，所以要用完美转发。如下面代码：
+*/
+template<typename Fn, typename...Args>
+auto show(Fn&& fn, Args&&...args) -> decltype(bind(forward<Fn>(fn), forward<Args>(args)...))
+{
+	cout << "表白前的准备工作......\n";
+
+	auto f = bind(forward<Fn>(fn), forward<Args>(args)...);
+	f();
+
+	cout << "表白完成。\n";
+	return f;
+}
+
+int main()
+{
+	show(show0);
+	show(show1,"我是一只傻傻鸟。");
+	CC cc;
+	auto f = show(&CC::show2,&cc, 3,"我是一只傻傻鸟。");
+	f();
+	
+	//thread t1(show0);
+	//thread t2(show1,"我是一只傻傻鸟。");
+	//CC cc;
+	//thread t3(&CC::show2,&cc, 3,"我是一只傻傻鸟。");
+	//t1.join();
+	//t2.join();
+	//t3.join();
+}
+```
+
+> ```cpp
+> template<typename Fn, typename...Args>
+> void show(Fn fn, Args...args) 
+> {
+> 	cout << "表白前的准备工作......\n";
+> 
+> 	auto f = bind(fn, args...);
+> 	f();
+> 
+> 	cout << "表白完成。\n";
+> } 
+> ```
+>
+> 这种情况下实参传入show函数中 会进行拷贝。进入bind函数中可能还会进行拷贝。
+
+回调函数：
+
+以生产者-消费者模型为例，将消费者处理数据的代码封装成一个回调函数，也就是在回调函数中去模拟处理数据。（场景需求：因为把AA看作一个框架，我们不能随便修改框架中的内容。只能将自己的函数注册到框架提供的注册函数callback。）
+
+```cpp
+#include <iostream>
+#include <string>
+#include <thread>                      // 线程类头文件。
+#include <mutex>                      // 互斥锁类的头文件。
+#include <deque>                      // deque容器的头文件。
+#include <queue>                      // queue容器的头文件。
+#include <condition_variable>  // 条件变量的头文件。
+#include <functional>
+using namespace std;
+
+void show(const string& message) {  // 处理业务的普通函数
+    cout << "处理数据：" << message << endl;
+}
+
+struct BB {  // 处理业务的类
+    void show(const string& message) {
+        cout << "处理表白数据：" << message << endl;
+    }
+};
+
+class AA
+{
+    mutex m_mutex;                                    // 互斥锁。
+    condition_variable m_cond;                  // 条件变量。
+    queue<string, deque<string>> m_q;   // 缓存队列，底层容器用deque。
+    function<void(const string&)> m_callback;  // m_callback是保存回调函数的 std::function 对象 也可以叫回调函数对象。
+public:
+    // 注册回调函数，回调函数只有一个参数（消费者接收到的数据）。
+    template<typename Fn, typename ...Args>
+    void callback(Fn&& fn, Args&&...args) {
+        m_callback = bind(forward<Fn>(fn), forward<Args>(args)..., std::placeholders::_1);  // 绑定回调函数。
+    }
+
+    void incache(int num)     // 生产数据，num指定数据的个数。
+    {
+        lock_guard<mutex> lock(m_mutex);   // 申请加锁。
+        for (int ii = 0; ii < num; ii++)
+        {
+            static int bh = 1;           // 超女编号。
+            string message = to_string(bh++) + "号超女";    // 拼接出一个数据。
+            m_q.push(message);     // 把生产出来的数据入队。
+        }
+        //m_cond.notify_one();     // 唤醒一个被当前条件变量阻塞的线程。
+        m_cond.notify_all();          // 唤醒全部被当前条件变量阻塞的线程。
+    }
+
+    void outcache() {    // 消费者线程任务函数。
+        while (true) {
+            // 把互斥锁转换成unique_lock<mutex>，并申请加锁。
+            unique_lock<mutex> lock(m_mutex);
+
+            // 1）把互斥锁解开；2）阻塞，等待被唤醒；3）给互斥锁加锁。
+            m_cond.wait(lock, [this] { return !m_q.empty(); });
+
+            // 数据元素出队。
+            string message = m_q.front();  m_q.pop();
+            cout << "线程：" << this_thread::get_id() << "，" << message << endl;
+            lock.unlock();      // 手工解锁。
+
+            // 处理出队的数据（把数据消费掉）。
+            if (m_callback) m_callback(message);  // 如果用户注册过回调函数，就把 message 交给回调函数处理。
+        }
+    }
+};
+
+int main()
+{
+    AA aa;
+    // aa.callback(show);                    // 把普通函数show()注册为回调函数。
+    BB bb;
+    aa.callback(&BB::show, &bb);    // 把类成员函数BB::show()注册为回调函数。
+// 进入callback以后 m_callback = bind(&BB::show, &bb, placeholders::_1);
+  // 执行 m_callback(message); 相当于bb.show(message)
+    thread t1(&AA::outcache, &aa);     // 创建消费者线程t1。
+    thread t2(&AA::outcache, &aa);     // 创建消费者线程t2。
+    thread t3(&AA::outcache, &aa);     // 创建消费者线程t3。
+
+    this_thread::sleep_for(chrono::seconds(2));    // 休眠2秒。
+    aa.incache(2);      // 生产2个数据。
+
+    this_thread::sleep_for(chrono::seconds(3));    // 休眠3秒。
+    aa.incache(5);      // 生产5个数据。
+
+    t1.join();   // 回收子线程的资源。
+    t2.join();
+    t3.join();
+}
+```
+
+> 上述代码完美转发的意义是什么？
+>
+> `bind` 要把函数和参数保存起来，所以它**可能会拷贝，也可能会移动**。比如传左值对象：
+>
+> ```
+> BB bb;
+> aa.callback(&BB::show, bb);
+> ```
+>
+> 这里 `bb` 是左值。
+>
+> `std::forward<Args>(args)` 会保持它是左值，所以传给 `bind` 后，`bind` 通常会**拷贝一份 `bb` 保存起来**。
+>
+> 也就是说：完美转发不是在 `callback` 这一层拷贝，但 `bind` 为了保存参数，还是会拷贝。
+>
+> 如果传右值对象：
+>
+> ```
+> aa.callback(&BB::show, BB{});
+> ```
+>
+> 或者：
+>
+> ```
+> BB bb;
+> aa.callback(&BB::show, std::move(bb));
+> ```
+>
+> 这时传进去的是右值。
+>
+> `std::forward<Args>(args)` 会保持它是右值，所以 `bind` 保存参数时，可以调用移动构造，**把对象移动进去**。
+
+如何取代虚函数：
+
+C++虚函数在执行过程中会跳转两次（先查找对象的函数表，再次通过该函数表中的地址找到真正的执行地址），这样的话，CPU会跳转两次，而普通函数只跳转一次。
+
+CPU每跳转一次，预取指令要作废很多，所以效率会很低。
+
+```cpp
+#include <iostream>         // 包含头文件。
+#include <functional>
+using namespace std;
+
+struct Hero  {							// 英雄基类
+	//virtual void show() { cout << "英雄释放了技能。\n"; }
+	function<void()> m_callback;        // 用于绑定子类的成员函数。
+
+	// 注册子类成员函数，子类成员函数没有参数。
+	template<typename Fn, typename ...Args>
+	void callback(Fn&& fn, Args&&...args) {
+		m_callback = bind(forward<Fn>(fn), forward<Args>(args)...);
+	}
+	void show() { m_callback(); }   // 调用子类的成员函数。
+};
+
+struct XS :public Hero  {			// 西施派生类
+	void show() { cout << "西施释放了技能。\n"; }
+};
+
+struct HX :public Hero  {			// 韩信派生类
+	void show() { cout << "韩信释放了技能。\n"; }
+};
+
+int main()
+{
+	// 根据用户选择的英雄，施展技能。
+	int id = 0;     // 英雄的id。
+	cout << "请输入英雄（1-西施；2-韩信。）：";
+	cin >> id;
+
+	// 创建基类指针，将指向派生类对象，用基类指针调用派生类的成员函数。
+	Hero* ptr = nullptr;
+
+	if (id == 1) {            // 1-西施
+		ptr = new XS;
+		ptr->callback(&XS::show, static_cast<XS*>(ptr));  // 注册子类成员函数。 把ptr转换成派生类型的指针
+	}
+	else if (id == 2) {     // 2-韩信
+		ptr = new HX;
+		ptr->callback(&HX::show, static_cast<HX*>(ptr));  // 注册子类成员函数。
+	}
+
+	if (ptr != nullptr) {
+		ptr->show();		// 调用子类的成员函数。
+		delete ptr;			// 释放派生类对象。
+	}
+}
+```
+
+
 

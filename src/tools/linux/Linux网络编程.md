@@ -1,4 +1,4 @@
-#  Linux网络编程
+Linux网络编程
 
 > 参考资料： 
 >
@@ -64,7 +64,7 @@
 
 ![image-20260309125951746](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309125951746.png)
 
-为了解决字节序问题，统一规定**网络数据流采用大端字节序**，要进行网络字节序和主机字节序的转换。
+为了解决不同字节序的计算机之间传输数据的问题，统一规定**网络数据流采用大端字节序**，要进行网络字节序和主机字节序的转换。
 
 ```cpp
 # 所需函数
@@ -73,7 +73,10 @@ htons(usigned short) 本地转网络（端口）
 ntohl  网络转本地（IP）
 ntohs 网络转本地（端口）
 点分十进制->string->atoi函数（字符串转整数）->int->htonl函数->网络字节序
+  
 ```
+
+什么时候才考虑字节序问题？
 
 ![image-20260309130538721](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309130538721.png)
 
@@ -83,7 +86,7 @@ inet_pton函数可以把点分十进制IP地址转化成网络字节序二进制
 
 > 还有一个函数inet_aton也可以把点分十进制IP地址转化成网络字节序的二进制形式（inet_ntoa正好反过来，把网络字节序二进制形式转化成点分十进制IP地址）。但是只支持IPV4协议，安全性也不高，所以现在基本不用了，只用pton函数。
 >
-> `char* inet_ntoa(struct in_addr in);`
+> `char* inet_ntoa(struct in_addr in);` 传入的参数是in_addr结构体。
 >
 > ![image-20260309131453212](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309131453212.png)
 >
@@ -139,7 +142,7 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 >
 > 客户端如何知道服务器端的IP地址和端口号：通过DNS解析出IP地址，端口号是用的默认端口。或者直接手动给客户端传服务端的IP和端口号。
 
-
+客户端需要提前知道服务端的IP和端口；而服务端不用提前知道客户端的IP和端口。
 
 ### 服务端：
 
@@ -153,8 +156,8 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
   ![image-20260310212035826](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260310212035826.png)
 
   * type：套接字的数据传输方式：SOCK_STREAM(面向连接的套接字）、SOCK_DGRAM（面向消息的套接字）
-  * protocol：通信中使用的协议（一般设置成0就行）如果同一协议族中存在多个数据传输方式相同的协议，那么就需要指定第三个参数
-  * 成功返回fd，失败返回-1，设置errno
+  * protocol：通信中使用的协议（一般设置成0就行）如果同一协议族中存在多个数据传输方式相同的协议，那么就需要指定第三个参数。在IPv4网络协议家族中，数据传输方式为SOCK_STREAM的协议只有IPPROTO_TCP，数据传输方式为SOCK_DGRAM的协议只有IPPROTO_UDP。所以不需要指定第三个参数，设置为0即可。
+  * 成功返回fd，失败返回-1，设置errno。单个进程中创建的socket数量受系统参数open files的限制。（ulimit -a可以查看最大open files个数 打开的文件个数➕socket个数不能超过这个限制。 ）
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205144601009.png" alt="image-20251205144601009" style="zoom:50%;" />
 
@@ -167,12 +170,12 @@ socket是一种"打开—读/写—关闭"模式的实现，服务器和客户�
 ```cpp
 struct sockaddr
 {
-	sa_family_t sin_family; //地址族
+	sa_family_t sin_family; //地址族 与socket函数第一个参数相同
     char sa_data[14]；// 地址信息
 }
 ```
 
-这是一个通用的结构体，下面介绍IPV4专用的结构体：
+这是一个通用的结构体，下面介绍IPV4专用的结构体`sockaddr_in`：
 
 ```cpp
 struct sockaddr_in
@@ -181,7 +184,7 @@ struct sockaddr_in
     unit16_t    sin_port; //16位TCP/UDP端口号
     struct      in_addr sin_addr;//32位IP地址（IPV4）
     char        sin_zero[8];//弃用 
-}
+} //最后三个成员总共14字节，和sockaddr第二个成员大小是一样的。
 
 struct in_addr
 {
@@ -203,10 +206,62 @@ bind函数的第二个参数是sockaddr结构体类型，只需要对sockaddr_in
 
 初始化sockaddr_in结构体的方法：![image-20260309135701719](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309135701719.png)
 
-IP地址初始化也可以采用：
+如何将字符串类型的IP地址转化成网络字节序格式？
+
+1. C语言提供了几个库函数，用于字符串格式的IP和大端序IP的互相转换，用于网络通讯的服务端程序中。
 
 ```cpp
- int dst;
+typedef unsigned int in_addr_t;    // 32位大端序的IP地址。
+
+// 把字符串格式的IP转换成大端序的IP，转换后的IP赋给sockaddr_in.in_addr.s_addr。
+in_addr_t inet_addr(const char *cp);
+
+// 把字符串格式的IP转换成大端序的IP，转换后的IP将填充到sockaddr_in.in_addr成员。
+int inet_aton(const char *cp, struct in_addr *inp);
+
+// 把大端序IP转换成字符串格式的IP，用于在服务端程序中解析客户端的IP地址。
+char *inet_ntoa(struct in_addr in);
+```
+
+2. gethostbyname函数。根据域名/主机名/字符串IP获取大端序IP，用于网络通讯的客户端程序中。
+
+```cpp
+struct hostent *gethostbyname(const char *name);
+struct hostent {
+  char *h_name;     	// 主机名。
+  char **h_aliases;    	// 主机所有别名构成的字符串数组，同一IP可绑定多个域名。
+  short h_addrtype; 	// 主机IP地址的类型，例如IPV4（AF_INET）还是IPV6。
+  short h_length;     	// 主机IP地址长度，IPV4地址为4，IPV6地址则为16。
+  char **h_addr_list; 	// 主机的ip地址，以网络字节序存储。
+};
+#define h_addr h_addr_list[0] 	// for backward compatibility.
+```
+
+转换后，用以下代码把大端序的地址复制到sockaddr_in结构体的sin_addr成员中。
+
+```cpp
+memcpy(&servaddr.sin_addr,h->h_addr,h->h_length);
+```
+
+具体写法：
+
+```cpp
+ struct hostent* h;                         // 用于存放服务端IP地址(大端序)的结构体的指针。
+  if ( (h = gethostbyname(argv[1])) == nullptr )  // 把域名/主机名/字符串格式的IP转换成结构体。
+  {
+    cout << "gethostbyname failed.\n" << endl; close(sockfd); return -1;
+  }
+  memcpy(&servaddr.sin_addr,h->h_addr,h->h_length); // ③指定服务端的IP(大端序)。
+
+  //servaddr.sin_addr.s_addr=inet_addr(argv[1]); // ③指定服务端的IP，只能用IP，不能用域名和主机名。
+```
+
+客户端程序将IP地址转换为大端序也可以用inet_addr函数，但是参数类型就不能传域名、主机名了。
+
+3. IP地址初始化也可以采用：
+
+```cpp
+int dst;
 inet_pton(AF_INET, "192.157.22.45", (void*)&dst);
 addr.sin_addr.s_addr=dst;
 ```
@@ -224,6 +279,9 @@ addr.sin_addr.s_addr=dst;
 `int listen(int sockfd, int backlog)`
 
 * backlog：连接请求等待队列的长度，上限值是128。比如长度为5说明最多使5个连接请求进入队列。（同时与服务器建立连接的上限数，也就是同时进行3次握手的客户端数量）
+
+更新：`listen()` 的第二个参数 `backlog` 控制的是全连接队列（已经完成三次握手，但是还没有被accept的客户端）。backlog设置成5，实际全连接队列能装6个。上限值新版内核默认4096。全连接队列满了后，再来的客户端连接内核会如何处理呢，见TCP相关知识。
+
 * 成功返回0，失败返回-1，设置errno。
 
 ![image-20260309141548886](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309141548886.png)
@@ -247,6 +305,10 @@ addr.sin_addr.s_addr=dst;
 
 ![image-20251205145702289](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251205145702289.png)
 
+accept函数第二、三个参数可以填0，表示不关心客户端的地址信息。
+
+如果传入了参数，调用accept函数后，可以调用inet_ntoa(addr.sin_addr)将客户端大端序IP转换成点分十进制字符串IP。
+
 ### 客户端：
 
 connect函数：向服务器发送连接请求
@@ -269,19 +331,11 @@ connect函数：向服务器发送连接请求
 
 假如服务器端调用了accept函数，客户端还没有调用connect函数，accept函数就会阻塞等待。如果调用了connect函数，accept函数就会处理连接请求。假如服务端正在和一个客户端进行通信，其它客户端的连接请求就会被放入等待队列。
 
-
-
 > 为什么服务器端会率先调用accept函数？
 >
 > 如果服务端不提前等在 `accept` 处，而是等发现有连接了再去调 `accept`，响应速度会变慢。
 >
 > ![image-20260309153135410](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260309153135410.png)
-
-
-
-
-
-
 
 ### 回声服务器端/客户端
 
@@ -472,6 +526,473 @@ printf("Message from server: %s",message);
 ```
 
 ### 简单的C/S通信案例
+
+案例一：码农论坛(实现文件传输功能 客户端发送文本文件或二进制文件给服务器)
+
+```cpp
+ /*
+ * 程序名：demo11.cpp，此程序用于演示文件传输的客户端。
+*/
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+using namespace std;
+
+class ctcpclient         // TCP通讯的客户端类。
+{
+private:
+  int m_clientfd;        // 客户端的socket，-1表示未连接或连接已断开；>=0表示有效的socket。
+  string m_ip;           // 服务端的IP/域名。
+  unsigned short m_port; // 通讯端口。
+public:
+  ctcpclient():m_clientfd(-1) {}
+
+  // 向服务端发起连接请求，成功返回true，失败返回false。
+  bool connect(const string &in_ip,const unsigned short in_port)
+  {
+    if (m_clientfd!=-1) return false; // 如果socket已连接，直接返回失败。
+
+    m_ip=in_ip; m_port=in_port;       // 把服务端的IP和端口保存到成员变量中。
+
+    // 第1步：创建客户端的socket。
+    if ( (m_clientfd = socket(AF_INET,SOCK_STREAM,0))==-1) return false;
+
+    // 第2步：向服务器发起连接请求。
+    struct sockaddr_in servaddr;               // 用于存放协议、端口和IP地址的结构体。
+    memset(&servaddr,0,sizeof(servaddr));
+    servaddr.sin_family = AF_INET;             // ①协议族，固定填AF_INET。
+    servaddr.sin_port = htons(m_port);         // ②指定服务端的通信端口。
+
+    struct hostent* h;                         // 用于存放服务端IP地址(大端序)的结构体的指针。
+    if ((h=gethostbyname(m_ip.c_str()))==nullptr ) // 把域名/主机名/字符串格式的IP转换成结构体。
+    {
+      ::close(m_clientfd); m_clientfd=-1; return false;
+    }
+    memcpy(&servaddr.sin_addr,h->h_addr,h->h_length); // ③指定服务端的IP(大端序)。
+
+    // 向服务端发起连接清求。
+    if (::connect(m_clientfd,(struct sockaddr *)&servaddr,sizeof(servaddr))==-1)
+    {
+      ::close(m_clientfd); m_clientfd=-1; return false;
+    }
+
+    return true;
+  }
+
+  // 向服务端发送报文（字符串），成功返回true，失败返回false。
+  bool send(const string &buffer)   // buffer不要用const char *
+  {
+    if (m_clientfd==-1) return false; // 如果socket的状态是未连接，直接返回失败。
+
+    if ((::send(m_clientfd,buffer.data(),buffer.size(),0))<=0) return false;
+
+    return true;
+  }
+
+  // 向服务端发送报文（二进制数据），成功返回true，失败返回false。
+  bool send(void *buffer,const size_t size)
+  {
+    if (m_clientfd==-1) return false; // 如果socket的状态是未连接，直接返回失败。
+
+    if ((::send(m_clientfd,buffer,size,0))<=0) return false;
+
+    return true;
+  }
+
+  // 接收服务端的报文，成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，maxlen-本次接收报文的最大长度。
+  bool recv(string &buffer,const size_t maxlen)
+  { // 如果直接操作string对象的内存，必须保证：1)不能越界；2）操作后手动设置数据的大小。
+    buffer.clear();         // 清空容器。
+    buffer.resize(maxlen);  // 设置容器的大小为maxlen。
+    int readn=::recv(m_clientfd,&buffer[0],buffer.size(),0);  // 直接操作buffer的内存。
+    if (readn<=0) { buffer.clear(); return false; }
+    buffer.resize(readn);   // 重置buffer的实际大小。
+
+    return true;
+  }
+
+  // 断开与服务端的连接。
+  bool close()
+  {
+    if (m_clientfd==-1) return false; // 如果socket的状态是未连接，直接返回失败。
+
+    ::close(m_clientfd);
+    m_clientfd=-1;
+    return true;
+  }
+
+  // 向服务端发送文件内容。
+  bool sendfile(const string &filename,const size_t filesize)
+  {
+    // 以二进制的方式打开文件。
+    ifstream fin(filename,ios::binary);
+    if (fin.is_open() == false) { cout << "打开文件" << filename << "失败。\n";  return false; }
+
+    int  onread=0;        // 每次调用fin.read()时打算读取的字节数。  每次应搬砖头数。
+    int  totalbytes=0;    // 从文件中已读取的字节总数。 已搬砖头数。
+    char buffer[4096];       // 存放读取数据的buffer。     每次搬七块砖头。
+
+    while (true)
+    {
+      memset(buffer,0,sizeof(buffer));
+
+      // 计算本次应该读取的字节数，如果剩余的数据超过4096字节，就读4096字节。
+      if (filesize-totalbytes>4096) onread=4096;
+      else onread=filesize-totalbytes;
+
+      // 从文件中读取数据。
+      fin.read(buffer,onread);
+
+      // 把读取到的数据发送给对端。
+      if (send(buffer,onread)==false) return false;
+
+      // 计算文件已读取的字节总数，如果文件已读完，跳出循环。
+      totalbytes=totalbytes+onread;
+
+      if (totalbytes==filesize) break;
+    }
+
+    return true;
+  }
+
+ ~ctcpclient(){ close(); }
+};
+
+int main(int argc,char *argv[])
+{
+  if (argc!=5)
+  {
+    cout << "Using:./demo11 服务端的IP 服务端的端口 文件名 文件大小\n";
+    cout << "Example:./demo11 192.168.101.138 5005 aaa.txt 2424\n\n";
+    return -1;
+  }
+
+  ctcpclient tcpclient;
+  if (tcpclient.connect(argv[1],atoi(argv[2]))==false)  // 向服务端发起连接请求。
+  {
+    perror("connect()"); return -1;
+  }
+
+  // 以下是发送文件的流程。
+  // 1）把待传输文件名和文件的大小告诉服务端。
+  // 定义文件信息的结构体。
+  struct st_fileinfo{
+    char filename[256];  // 文件名。
+    int  filesize;       // 文件大小。
+  }fileinfo;
+  memset(&fileinfo,0,sizeof(fileinfo));
+  strcpy(fileinfo.filename,argv[3]);     // 文件名。
+  fileinfo.filesize=atoi(argv[4]);       // 文件大小。
+  // 把文件信息的结构体发送给服务端。
+  if (tcpclient.send(&fileinfo,sizeof(fileinfo))==false) { perror("send"); return -1; }
+  cout << "发送文件信息的结构体" << fileinfo.filename << "(" << fileinfo.filesize <<")。"<< endl;
+
+  // 2）等待服务端的确认报文（文件名和文件的大小的确认）。
+  string buffer;
+  if (tcpclient.recv(buffer,2)==false) { perror("recv()"); return -1; }
+  if (buffer!="ok") { cout << "服务端没有回复ok。\n"; return -1; }
+
+  // 3）发送文件内容。
+  if (tcpclient.sendfile(fileinfo.filename,fileinfo.filesize)==false)
+  {
+    perror("sendfile()"); return -1;
+  }
+
+  // 4）等待服务端的确认报文（服务端已接收完文件）。
+  if (tcpclient.recv(buffer,2)==false) { perror("recv()"); return -1; }
+  if (buffer!="ok") { cout << "发送文件内容失败。\n"; return -1; }
+
+  cout << "发送文件内容成功。\n";
+}
+```
+
+```cpp
+/*
+ * 程序名：demo12.cpp，此程序用于演示文件传输的服务端。
+*/
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <netdb.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+using namespace std;
+
+class ctcpserver         // TCP通讯的服务端类。
+{
+private:
+  int    m_listenfd;        // 监听的socket，-1表示未初始化。
+  int    m_clientfd;        // 客户端连上来的socket，-1表示客户端未连接。
+  string m_clientip;        // 客户端字符串格式的IP。
+  unsigned short m_port;    // 服务端用于通讯的端口。
+public:
+  ctcpserver():m_listenfd(-1),m_clientfd(-1) {}
+
+  // 初始化服务端用于监听的socket。
+  bool initserver(const unsigned short in_port)
+  {
+    // 第1步：创建服务端的socket。
+    if ( (m_listenfd=socket(AF_INET,SOCK_STREAM,0))==-1) return false;
+
+    m_port=in_port;
+
+    // 第2步：把服务端用于通信的IP和端口绑定到socket上。
+    struct sockaddr_in servaddr;                // 用于存放协议、端口和IP地址的结构体。
+    memset(&servaddr,0,sizeof(servaddr));
+    servaddr.sin_family=AF_INET;                // ①协议族，固定填AF_INET。
+    servaddr.sin_port=htons(m_port);            // ②指定服务端的通信端口。
+    servaddr.sin_addr.s_addr=htonl(INADDR_ANY); // ③如果操作系统有多个IP，全部的IP都可以用于通讯。
+
+    // 绑定服务端的IP和端口（为socket分配IP和端口）。
+    if (bind(m_listenfd,(struct sockaddr *)&servaddr,sizeof(servaddr))==-1)
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    // 第3步：把socket设置为可连接（监听）的状态。
+    if (listen(m_listenfd,5) == -1 )
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    return true;
+  }
+
+  // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+  // 如果没有已连接的客户端，accept()函数将阻塞等待。
+  bool accept()
+  {
+    struct sockaddr_in caddr;        // 客户端的地址信息。
+    socklen_t addrlen=sizeof(caddr); // struct sockaddr_in的大小。
+    if ((m_clientfd=::accept(m_listenfd,(struct sockaddr *)&caddr,&addrlen))==-1) return false;
+
+    m_clientip=inet_ntoa(caddr.sin_addr);  // 把客户端的地址从大端序转换成字符串。
+
+    return true;
+  }
+
+  // 获取客户端的IP(字符串格式)。
+  const string & clientip() const
+  {
+    return m_clientip;
+  }
+
+  // 向对端发送报文，成功返回true，失败返回false。
+  bool send(const string &buffer)
+  {
+    if (m_clientfd==-1) return false;
+
+    if ( (::send(m_clientfd,buffer.data(),buffer.size(),0))<=0) return false;
+
+    return true;
+  }
+
+  // 接收对端的报文（字符串），成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，maxlen-本次接收报文的最大长度。
+  bool recv(string &buffer,const size_t maxlen)
+  {
+    buffer.clear();         // 清空容器。
+    buffer.resize(maxlen);  // 设置容器的大小为maxlen。
+    int readn=::recv(m_clientfd,&buffer[0],buffer.size(),0);  // 直接操作buffer的内存。
+    if (readn<=0) { buffer.clear(); return false; }
+    buffer.resize(readn);   // 重置buffer的实际大小。
+
+    return true;
+  }
+
+  // 接收客户端的报文（二进制数据），成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，size-本次接收报文的最大长度。
+  bool recv(void *buffer,const size_t size)
+  {
+    if (::recv(m_clientfd,buffer,size,0)<=0) return false;
+
+    return true;
+  }
+
+  // 关闭监听的socket。
+  bool closelisten()
+  {
+    if (m_listenfd==-1) return false;
+
+    ::close(m_listenfd);
+    m_listenfd=-1;
+    return true;
+  }
+
+  // 关闭客户端连上来的socket。
+  bool closeclient()
+  {
+    if (m_clientfd==-1) return false;
+
+    ::close(m_clientfd);
+    m_clientfd=-1;
+    return true;
+  }
+
+  // 接收文件内容。
+  bool recvfile(const string &filename,const size_t filesize)
+  {
+    ofstream fout; //写文件
+    fout.open(filename,ios::binary);
+    if (fout.is_open() == false) { cout << "打开文件" << filename << "失败。\n";  return false; }
+
+    int  totalbytes=0;        // 已接收文件的总字节数。
+    int  onread=0;            // 本次打算接收的字节数。
+    char buffer[4096];           // 接收文件内容的缓冲区。
+
+    while (true)
+    {
+      // 计算本次应该接收的字节数。
+      if (filesize-totalbytes>4096) onread=4096;
+      else onread=filesize-totalbytes;
+
+      // 接收文件内容。
+      if (recv(buffer,onread)==false) return false;
+
+      // 把接收到的内容写入文件。
+      fout.write(buffer,onread);
+
+      // 计算已接收文件的总字节数，如果文件接收完，跳出循环。
+      totalbytes=totalbytes+onread;
+
+      if (totalbytes==filesize) break;
+    }
+
+    return true;
+  }
+
+ ~ctcpserver() { closelisten(); closeclient(); }
+};
+
+ctcpserver tcpserver;
+
+void FathEXIT(int sig);  // 父进程的信号处理函数。
+void ChldEXIT(int sig);  // 子进程的信号处理函数。
+
+int main(int argc,char *argv[])
+{
+  if (argc!=3)
+  {
+    cout << "Using:./demo12 通讯端口 文件存放的目录\n";
+    cout << "Example:./demo12 5005 /tmp\n\n";
+    cout << "注意：运行服务端程序的Linux系统的防火墙必须要开通5005端口。\n";
+    cout << "      如果是云服务器，还要开通云平台的访问策略。\n\n";
+    return -1;
+  }
+
+  // 忽略全部的信号，不希望被打扰。顺便解决了僵尸进程的问题。
+  for (int ii=1;ii<=64;ii++) signal(ii,SIG_IGN);
+
+  // 设置信号,在shell状态下可用 "kill 进程号" 或 "Ctrl+c" 正常终止些进程
+  // 但请不要用 "kill -9 +进程号" 强行终止
+  signal(SIGTERM,FathEXIT); signal(SIGINT,FathEXIT);  // SIGTERM 15 SIGINT 2
+
+  if (tcpserver.initserver(atoi(argv[1]))==false) // 初始化服务端用于监听的socket。
+  {
+    perror("initserver()"); return -1;
+  }
+
+  while (true)
+  {
+    // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+    // 如果没有已连接的客户端，accept()函数将阻塞等待。
+    if (tcpserver.accept()==false)
+    {
+      perror("accept()"); return -1;
+    }
+
+    int pid=fork();
+    if (pid==-1) { perror("fork()"); return -1; }  // 系统资源不足。
+    if (pid>  0)
+    { // 父进程。
+      tcpserver.closeclient();  // 父进程关闭客户端连接的socket。
+      continue;                 // 父进程返回到循环开始的位置，继续受理客户端的连接。
+    }
+
+    tcpserver.closelisten();    // 子进程关闭监听的socket。
+
+    // 子进程需要重新设置信号。
+    signal(SIGTERM,ChldEXIT);   // 子进程的退出函数与父进程不一样。
+    signal(SIGINT ,SIG_IGN);    // 子进程不需要捕获SIGINT信号。
+
+    // 子进程负责与客户端进行通讯。
+    cout << "客户端已连接(" << tcpserver.clientip() << ")。\n";
+
+    // 以下是接收文件的流程。
+    // 1）接收文件名和文件大小信息。
+    // 定义文件信息的结构体。
+    struct st_fileinfo{
+      char filename[256];  // 文件名。
+      int  filesize;       // 文件大小。
+    }fileinfo;
+    memset(&fileinfo,0,sizeof(fileinfo));
+    // 用结构体存放接收报文的内容。
+    if (tcpserver.recv(&fileinfo,sizeof(fileinfo))==false) { perror("recv()"); return -1; }
+    cout << "文件信息结构体" << fileinfo.filename << "(" << fileinfo.filesize <<")。"<< endl;
+
+    // 2）给客户端回复确认报文，表示客户端可以发送文件了。
+    if (tcpserver.send("ok")==false)  { perror("send"); break; }
+
+    // 3）接收文件内容。  string   char * + const char * + char *
+    if (tcpserver.recvfile(string(argv[2])+"/"+fileinfo.filename,fileinfo.filesize)==false)
+    {
+      cout << "接收文件内容失败。\n"; return -1;
+    }
+
+    cout << "接收文件内容成功。\n";
+
+    // 4）给客户端回复确认报文，表示文件已接收成功。
+    tcpserver.send("ok");
+
+    return 0;  // 子进程一定要退出，否则又会回到accept()函数的位置。
+  }
+}
+
+// 父进程的信号处理函数。
+void FathEXIT(int sig)
+{
+  // 以下代码是为了防止信号处理函数在执行的过程中再次被信号中断。
+  signal(SIGINT,SIG_IGN); signal(SIGTERM,SIG_IGN);
+
+  cout << "父进程退出，sig=" << sig << endl;
+
+  kill(0,SIGTERM);     // 向全部的子进程发送15的信号，通知它们退出。
+
+  // 在这里增加释放资源的代码（全局的资源）。
+  tcpserver.closelisten();       // 父进程关闭监听的socket。
+
+  exit(0);
+}
+
+// 子进程的信号处理函数。
+void ChldEXIT(int sig)
+{
+  // 以下代码是为了防止信号处理函数在执行的过程中再次被信号中断。
+  signal(SIGINT,SIG_IGN); signal(SIGTERM,SIG_IGN);
+
+  cout << "子进程" << getpid() << "退出，sig=" << sig << endl;
+
+  // 在这里增加释放资源的代码（只释放子进程的资源）。
+  tcpserver.closeclient();       // 子进程关闭客户端连上来的socket。
+
+  exit(0);
+}
+```
+
+案例二：
 
 * cpp版本
 
@@ -744,21 +1265,357 @@ return 0;
 }
 ```
 
+### 封装socket
+
+客户端程序：
+
+```cpp
+/*
+ * 程序名：demo7.cpp，此程序用于演示封装socket通讯的客户端
+*/
+#include <iostream>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+using namespace std;
+
+class ctcpclient         // TCP通讯的客户端类。
+{
+private:
+  int m_clientfd;        // 客户端的socket，-1表示未连接或连接已断开；>=0表示有效的socket。
+  string m_ip;           // 服务端的IP/域名。
+  unsigned short m_port; // 通讯端口。
+public:
+  ctcpclient():m_clientfd(-1) {}
+
+  // 向服务端发起连接请求，成功返回true，失败返回false。
+  bool connect(const string &in_ip,const unsigned short in_port)
+  {
+    if (m_clientfd!=-1) return false; // 如果socket已连接，直接返回失败。
+
+    m_ip=in_ip; m_port=in_port;       // 把服务端的IP和端口保存到成员变量中。
+
+    // 第1步：创建客户端的socket。
+    if ( (m_clientfd = socket(AF_INET,SOCK_STREAM,0))==-1) return false;
+
+    // 第2步：向服务器发起连接请求。
+    struct sockaddr_in servaddr;               // 用于存放协议、端口和IP地址的结构体。
+    memset(&servaddr,0,sizeof(servaddr));
+    servaddr.sin_family = AF_INET;             // ①协议族，固定填AF_INET。
+    servaddr.sin_port = htons(m_port);         // ②指定服务端的通信端口。
+
+    struct hostent* h;                         // 用于存放服务端IP地址(大端序)的结构体的指针。
+    if ((h=gethostbyname(m_ip.c_str()))==nullptr ) // 把域名/主机名/字符串格式的IP转换成结构体。
+    {
+      ::close(m_clientfd); m_clientfd=-1; return false;
+    }
+    memcpy(&servaddr.sin_addr,h->h_addr,h->h_length); // ③指定服务端的IP(大端序)。
+
+    // 向服务端发起连接清求。
+    if (::connect(m_clientfd,(struct sockaddr *)&servaddr,sizeof(servaddr))==-1) //防止与类成员函数同名，强制调用全局 Socket API。
+    {
+      ::close(m_clientfd); m_clientfd=-1; return false;
+    }
+
+    return true;
+  }
+
+  // 向服务端发送报文，成功返回true，失败返回false。
+  bool send(const string &buffer)   // buffer不要用const char *      用string可以传C风格的字符串也能传string。
+  {
+    if (m_clientfd==-1) return false; // 如果socket的状态是未连接，直接返回失败。
+
+    if ((::send(m_clientfd,buffer.data(),buffer.size(),0))<=0) return false;
+
+    return true;
+  }
+
+  // 接收服务端的报文，成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，maxlen-本次接收报文的最大长度。
+  bool recv(string &buffer,const size_t maxlen)
+  { // 如果直接操作string对象的内存，必须保证：1)不能越界；2）操作后手动设置数据的大小。
+    buffer.clear();         // 清空容器。
+    buffer.resize(maxlen);  // 设置容器的大小为maxlen。
+    int readn=::recv(m_clientfd,&buffer[0],buffer.size(),0);  // 直接操作buffer的内存。
+    if (readn<=0) { buffer.clear(); return false; }
+    buffer.resize(readn);   // 重置buffer的实际大小。
+
+    return true;
+  }
+
+  // 断开与服务端的连接。
+  bool close()
+  {
+    if (m_clientfd==-1) return false; // 如果socket的状态是未连接，直接返回失败。
+
+    ::close(m_clientfd);
+    m_clientfd=-1;
+    return true;
+  }
+
+ ~ctcpclient(){ close(); }
+};
+
+int main(int argc,char *argv[])
+{
+  if (argc!=3)
+  {
+    cout << "Using:./demo7 服务端的IP 服务端的端口\nExample:./demo7 192.168.101.138 5005\n\n";
+    return -1;
+  }
+
+  ctcpclient tcpclient;
+  if (tcpclient.connect(argv[1],atoi(argv[2]))==false)  // 向服务端发起连接请求。
+  {
+    perror("connect()"); return -1;
+  }
+
+  // 第3步：与服务端通讯，客户发送一个请求报文后等待服务端的回复，收到回复后，再发下一个请求报文。
+  string buffer;
+  for (int ii=0;ii<10;ii++)  // 循环3次，将与服务端进行三次通讯。
+  {
+    buffer="这是第"+to_string(ii+1)+"个超级女生，编号"+to_string(ii+1)+"。";
+    // 向服务端发送请求报文。
+    if (tcpclient.send(buffer)==false)
+    {
+      perror("send"); break;
+    }
+    cout << "发送：" << buffer << endl;
+
+    // 接收服务端的回应报文，如果服务端没有发送回应报文，recv()函数将阻塞等待。
+    if (tcpclient.recv(buffer,1024)==false)
+    {
+      perror("recv()"); break;
+    }
+    cout << "接收：" << buffer << endl;
+
+    sleep(1);
+  }
+}
+```
+
+服务端：
+
+```cpp
+/*
+ * 程序名：demo8.cpp，此程序用于演示封装socket通讯的服务端
+*/
+#include <iostream>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+using namespace std;
+
+class ctcpserver         // TCP通讯的服务端类。
+{
+private:
+  int    m_listenfd;        // 监听的socket，-1表示未初始化。
+  int    m_clientfd;        // 客户端连上来的socket，-1表示客户端未连接。
+  string m_clientip;        // 客户端字符串格式的IP。
+  unsigned short m_port;    // 服务端用于通讯的端口。
+public:
+  ctcpserver():m_listenfd(-1),m_clientfd(-1) {}
+
+  // 初始化服务端用于监听的socket。
+  bool initserver(const unsigned short in_port)
+  {
+    // 第1步：创建服务端的socket。
+    if ( (m_listenfd=socket(AF_INET,SOCK_STREAM,0))==-1) return false;
+
+    m_port=in_port;
+
+    // 第2步：把服务端用于通信的IP和端口绑定到socket上。
+    struct sockaddr_in servaddr;                // 用于存放协议、端口和IP地址的结构体。
+    memset(&servaddr,0,sizeof(servaddr));
+    servaddr.sin_family=AF_INET;                // ①协议族，固定填AF_INET。
+    servaddr.sin_port=htons(m_port);            // ②指定服务端的通信端口。
+    servaddr.sin_addr.s_addr=htonl(INADDR_ANY); // ③如果操作系统有多个IP，全部的IP都可以用于通讯。
+
+    // 绑定服务端的IP和端口（为socket分配IP和端口）。
+    if (bind(m_listenfd,(struct sockaddr *)&servaddr,sizeof(servaddr))==-1)
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    // 第3步：把socket设置为可连接（监听）的状态。
+    if (listen(m_listenfd,5) == -1 )
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    return true;
+  }
+
+  // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+  // 如果没有已连接的客户端，accept()函数将阻塞等待。
+  bool accept()
+  {
+    struct sockaddr_in caddr;        // 客户端的地址信息。
+    socklen_t addrlen=sizeof(caddr); // struct sockaddr_in的大小。
+    if ((m_clientfd=::accept(m_listenfd,(struct sockaddr *)&caddr,&addrlen))==-1) return false;
+
+    m_clientip=inet_ntoa(caddr.sin_addr);  // 把客户端的地址从大端序转换成字符串。
+
+    return true;
+  }
+
+  // 获取客户端的IP(字符串格式)。
+  const string & clientip() const
+  {
+    return m_clientip;
+  }
+
+  // 向对端发送报文，成功返回true，失败返回false。
+  bool send(const string &buffer)
+  {
+    if (m_clientfd==-1) return false;
+
+    if ( (::send(m_clientfd,buffer.data(),buffer.size(),0))<=0) return false;
+
+    return true;
+  }
+
+  // 接收对端的报文，成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，maxlen-本次接收报文的最大长度。
+  bool recv(string &buffer,const size_t maxlen)
+  {
+    buffer.clear();         // 清空容器。
+    buffer.resize(maxlen);  // 设置容器的大小为maxlen。
+    int readn=::recv(m_clientfd,&buffer[0],buffer.size(),0);  // 直接操作buffer的内存。
+    if (readn<=0) { buffer.clear(); return false; }
+    buffer.resize(readn);   // 重置buffer的实际大小。
+
+    return true;
+  }
+
+  // 关闭监听的socket。
+  bool closelisten()
+  {
+    if (m_listenfd==-1) return false;
+
+    ::close(m_listenfd);
+    m_listenfd=-1;
+    return true;
+  }
+
+  // 关闭客户端连上来的socket。
+  bool closeclient()
+  {
+    if (m_clientfd==-1) return false;
+
+    ::close(m_clientfd);
+    m_clientfd=-1;
+    return true;
+  }
+
+ ~ctcpserver() { closelisten(); closeclient(); }
+};
+
+int main(int argc,char *argv[])
+{
+  if (argc!=2)
+  {
+    cout << "Using:./demo8 通讯端口\nExample:./demo8 5005\n\n";   // 端口大于1024，不与其它的重复。
+    cout << "注意：运行服务端程序的Linux系统的防火墙必须要开通5005端口。\n";
+    cout << "      如果是云服务器，还要开通云平台的访问策略。\n\n";
+    return -1;
+  }
+
+  ctcpserver tcpserver;
+  if (tcpserver.initserver(atoi(argv[1]))==false) // 初始化服务端用于监听的socket。
+  {
+    perror("initserver()"); return -1;
+  }
+
+  // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+  // 如果没有已连接的客户端，accept()函数将阻塞等待。
+  if (tcpserver.accept()==false)
+  {
+    perror("accept()"); return -1;
+  }
+  cout << "客户端已连接(" << tcpserver.clientip() << ")。\n";
+
+  string buffer;
+  while (true)
+  {
+    // 接收对端的报文，如果对端没有发送报文，recv()函数将阻塞等待。
+    if (tcpserver.recv(buffer,1024)==false)
+    {
+      perror("recv()"); break;
+    }
+    cout << "接收：" << buffer << endl;
+
+    buffer="ok";
+    if (tcpserver.send(buffer)==false)  // 向对端发送报文。
+    {
+      perror("send"); break;
+    }
+    cout << "发送：" << buffer << endl;
+  }
+}
+```
+
 ## TCP相关知识
 
 三次握手：
+
+下面这张图中展示了三次握手过程。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260610121745517.png" alt="image-20260610121745517" style="zoom:50%;" />
 
 SYN是Synchronization的简写，表示收发数据前传输的同步消息。
 
 ACK：表示确认消息
 
-第一步：客户端主动发起connect，SYN J：传输的数据包序号是J。此时connect函数进入阻塞状态。
+第一步：客户端主动发起connect，SYN J：传输的数据包序号是J。此时connect函数进入阻塞状态，socket进入SYN_SENT状态。
 
-第二步：服务器调用accept函数，处理连接请求，传输的数据包序号是K，ACK为J+1，表示对数据包J的确认，告知客户端你需要给我发送序号为J+1的数据包。
+第二步：向客户端传输的数据包序号是K，ACK为J+1，表示对数据包J的确认，告知客户端你需要给我发送序号为J+1的数据包。服务器进入SYN_RECV状态。（服务器调用accept函数，处理连接请求。这句话是错的。）
 
-第三步：客户端传输序号为J+1的数据包，ACK为K+1。客户端接收到该消息并把数据包塞进网卡准备发出去的一瞬间connect函数返回。当服务端收到发过来的数据包时，accept函数返回。
+第三步：客户端传输序号为J+1的数据包，ACK为K+1。客户端接收到该消息并把数据包塞进网卡准备发出去的一瞬间connect函数返回，进入ESTABLISHED状态。服务端接收到该数据包，进入ESTABLISHED状态。
 
-<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203174623156.png" alt="image-20251203174623156" style="zoom:50%;" />
+>  当调用了 `listen` 之后，监听 socket 就进入了工作状态。从这一刻起，只要有客户端连过来，**内核会自动替你完成三次握手**，完全不需要你的程序参与。
+>
+> 内核为此维护了**两个队列**：
+>
+> 第一个是**半连接队列**（SYN 队列）。客户端发来 SYN，内核回 SYN-ACK，此时这条连接还没握手完，就先放在这个队列里，状态是 `SYN_RECV`。
+>
+> 第二个是**全连接队列**（也叫 accept 队列）。当客户端发来最后那个 ACK、三次握手彻底完成后，内核就把这条连接从半连接队列**挪到全连接队列**里，状态变成 `ESTABLISHED`。
+>
+> 到这里，连接已经是完整建立好的了——**而你的程序可能还没调用 `accept()`，甚至还在睡觉。**如果此时客户端向服务端发送数据，数据会被放到内核的接收缓冲区中。
+>
+> 那 `accept()` 到底干嘛的？它的作用仅仅是：从全连接队列里**取出**一条已经建好的连接，返回一个新的 socket 给你的程序去通讯。如果队列是空的，`accept()` 就阻塞等待。所以 `accept()` 是"取货"，货（已建立的连接）是内核早就备好放在队列里的。
+
+可以测试一下，在服务端accept函数前加一个sleep，然后运行客户端、服务端。用命令`netstat -na`：可以查看socket的状态。会显示ESTABLISHED，表明连接已建立。
+
+命令`netstat -na`的详细信息：
+
+Proto 表示协议类型，Recv-Q 和 Send-Q 表示接收缓冲区和发送缓冲区（对于listen状态的socket，`Recv-Q` 表示的就是全连接队列的个数），Local Address  和 Foreign Address 表示本地和远端的地址信息（IP+端口号），State 表示socket状态。
+
+三次握手的更多细节：
+
+1）客户端的socket也有端口号，对程序员来说，不必关心客户端socket的端口号，所以系统随机分配。（socket通讯中的地址包括ip和端口号，但是，习惯中的地址仅指ip地址）
+
+2）服务端的bind()函数，普通用户只能使用1024以上的端口，root用户可以使用任意端口。
+
+3）listen()函数的第二个参数+1为已连接队列（ESTABLISHED状态，三次握手已完成但是没有被accept()的socket，只存在于服务端）的大小。当已连接队列满了，又有新的客户端发送连接请求，内核会如何处理？
+
+经过实验会发现，如下图所示，socket状态为SYN_RECV。也就是服务端给客户端发送ACK消息后变成的状态。客户端再发来最后的 ACK，正常情况下内核会把这条连接"升级"为 `ESTABLISHED`，并挪进**全连接队列**等着被 accept。但由于队列满了，默认情况下（由内核参数 `tcp_abort_on_overflow = 0` 控制），内核的处理是：**把客户端发来的那个 ACK 直接丢弃，假装没收到，于是这条连接就一直停留在 `SYN_RECV` 状态升不上去。之后内核会启动重传：过一会儿没等到"有效的 ACK"，它就重发 SYN-ACK（重传次数由 `tcp_synack_retries` 控制），如果重发之后客户端再回个 ACK、而那时全连接队列恰好被 accept 腾出空位了，这条连接就能顺利升级。如果重传若干次后队列始终满着，内核最终就放弃，把这条 `SYN_RECV` 连接清掉。**如果把 `tcp_abort_on_overflow` 设成 1，内核遇到这种"队列满、ACK 来了却放不下"的情况，就不会让它卡在 `SYN_RECV` 了，而是直接给客户端回一个 RST，把连接干脆利落地拒掉。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260610125741149.png" alt="image-20260610125741149" style="zoom:50%;" />
+
+4）SYN_RECV状态的连接也称为半连接。
+
+5）CLOSED是假想状态，实际上不存在。
 
 四次挥手：
 
@@ -766,22 +1623,44 @@ FIN：表示断开连接。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251204124621076.png" alt="image-20251204124621076" style="zoom: 33%;" />
 
- TCP 是一种面向连接的、可靠的，基于字节流的传输层通信协议。为两台主机提供高可靠性的数据通信服务。
+ 四次挥手的第二三步为什么不能合并在一块。因为服务器可能还有数据没有传输。所以回应完客户端的断开连接请求后，需要再进行数据传输，数据传输完再给客户端发断开服务端->客户端这一路径的连接请求。
+
+四次挥手细节：
+
+1）主动断开的端在四次挥手后，socket的状态为TIME_WAIT，该状态将持续2MSL（30秒/1分钟/2分钟）。 MSL（Maximum Segment Lifetime）报文在网络上存在的最长时间，超过这个时间报文将被丢弃。
+
+2）如果是服务端主动断开，有两方面的危害：a）socket没有立即释放；b）端口号只能在2MSL后才能重用。（setsocketopt函数可以设置socket的属性，解决服务端2MSL状态下端口无法重用的问题。）
+
+```cpp
+//放到bind前。
+int opt = 1;
+setsockopt(m_listenfd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
+```
+
+3）如果是客户端主动断开，TIME_WAIT状态的socket几乎不会造成危害。a）客户端程序的socket很少，服务端程序的socket很多（成千上万）；b）客户端的端口是随机分配的，不存在重用的问题。
+
+TCP 是一种面向连接的、可靠的，基于字节流的传输层通信协议。为两台主机提供高可靠性的数据通信服务。
 
 <img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173103195.png" alt="image-20251203173103195" style="zoom:50%;" /><img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20251203173118950.png" alt="image-20251203173118950" style="zoom: 42%;" />
 
-
+#### 缓冲区
 
 TCP协议的数据没有数据边界，比如服务端调用了1次write函数传输了40个字节的数据，客户端可能调用了4次read函数，每次读取10个字节。读取10个字节的时候，剩下的30个字节在哪？
 
-答案是输入缓冲区。每个套接字维护了两个缓存：输入缓冲、输出缓冲。![image-20260310090258374](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260310090258374.png)
+答案是输入缓冲区。每个套接字维护了两个缓存：输入缓冲（接收缓冲）、输出缓冲（发送缓冲）。![image-20260310090258374](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260310090258374.png)
 
 * I/O缓冲在每个TCP套接字中单独存在。
 * I/O缓冲在创建套接字时自动生成。
 * 即使关闭套接字也会继续传递输出缓冲中遗留的数据。
 * 关闭套接字将丢失输入缓冲中的数据。
 
-> 需要明白一个知识点，调用write函数并不会把数据直接传输到接收端，而是传输到输入缓冲。调用read函数也并不会直接读接收端发过来的数据，而是读取输入缓冲中的数据。
+系统为每个socket创建了发送缓冲区和接收缓冲区，应用程序调用send()/write()函数发送数据的时候，内核把数据从应用进程拷贝socket的发送缓冲区中；应用程序调用recv()/read()函数接收数据的时候，内核把数据从socket的接收缓冲区拷贝应用进程中。
+
+发送数据就是把数据放入发送缓冲区；接收数据就是从接收缓冲区中读数据。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260610131158780.png" alt="image-20260610131158780" style="zoom: 25%;" />
+
+> 需要明白一个知识点，调用write函数/send函数并不会把数据直接传输到接收端，而是拷贝到输入缓冲。至于什么时候发给对方，操作系统说了算。调用read函数/recv函数也并不会直接读接收端发过来的数据，而是读取输入缓冲中的数据。
 
 | write函数返回的时间点                                        |
 | ------------------------------------------------------------ |
@@ -806,6 +1685,22 @@ TCP协议的数据没有数据边界，比如服务端调用了1次write函数�
 > 套接字B：“OK！”
 
 数据收发也是如此，因此TCP中不回因为缓冲溢出而丢失数据。
+
+补充两个问题：
+
+* send()函数有可能会阻塞吗？
+
+  >  自己的发送缓冲区满了，放不下要发的数据，send就会阻塞。
+  >
+  > 还有一种情况：当接收缓冲区快满的时候，由于接收窗口机制，发送缓冲区发送的数据不能超过该窗口大小，接收缓冲区变满，窗口变0。此时发送缓冲区的数据不能发送出去了，send就会把发送缓冲区填满，填满之后send就会阻塞。
+
+* 向socket中写入数据后，如果关闭了socket，对端还能接收到数据吗？
+
+  > 比如看这样一个场景，服务端在accpet前加个sleep，客户端和服务端建立三次握手，之后客户端发送数据。然后关闭socket。服务端sleep完之后，accept并且recv，可以收到数据。因为客户端发来的数据被放到了接收缓冲中。recv是从接收缓冲中读取数据。
+
+
+
+
 
 ## 基于UDP的socket
 
@@ -1853,6 +2748,20 @@ getsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void*)&opt_val, &opt_len);
 
 如果正在使用Nagle算法，opt_val变量中会保存0；如果已禁用Nagle算法，则保存1。
 
+> 补充：
+>
+> 在TCP协议中，无论发送多少数据，都要在数据前面加上协议头，同时，对方收到数据后，也需要回复ACK表示确认。为了尽可能的利用网络带宽，TCP希望每次都能够以MSS（Maximum Segment Size，最大报文长度）的数据块来发送数据。
+>
+> Nagle算法就是为了尽可能发送大块的数据，避免网络中充斥着小数据块。
+>
+> Nagle算法的定义是：任意时刻，最多只能有一个未被确认的小段，小段是指小于MSS的数据块，未被确认是指一个数据块发送出去后，没有收到对端回复的ACK。
+>
+> 举个例子：发送端调用send()函数将一个int型数据（称之为A数据块）写入到socket中，A数据块会被马上发送到接收端，接着，发送端又调用send()函数写入一个int型数据（称之为B数据块），这时候，A块的ACK没有返回（已经存在了一个未被确认的小段），所以B块不会立即被发送，而是等A块的ACK返回之后（大概40ms）才发送。
+>
+> TCP协议中不仅仅有Nagle算法，还有一个ACK延迟机制：当接收端收到数据之后，并不会马上向发送端回复ACK，而是延迟40ms后再回复，它希望在40ms内接收端会向发送端回复应答数据，这样ACK就可以和应答数据一起发送，把ACK捎带过去。
+>
+> 如果TCP连接的一端启用了Nagle算法，另一端启用了ACK延时机制，而发送的数据包又比较小，则可能会出现这样的情况：发送端在等待上一个包的ACK，而接收端正好延迟了此ACK，那么这个正要被发送的包就会延迟40ms。
+
 ## send和recv函数
 
 send：是一个系统调用函数，用来发送消息到一个套接字中
@@ -1865,7 +2774,12 @@ recv:
 
 `ssize_t recv(int sockfd, void* buf, size_t len, int flags);`
 
+返回值：
 
+* 返回>0 实际接收到的字节数
+* 返回0 对端关闭了连接
+* 返回-1 调用失败
+* ssize_t 有符号整数
 
 | 可选项（option） | 含义                                                         | send | recv |
 | ---------------- | ------------------------------------------------------------ | ---- | ---- |
@@ -2837,6 +3751,193 @@ int main(int argc, char * argv[])
 }
 ```
 
+### 阻塞与非阻塞IO
+
+阻塞：在进/线程中，发起一个调用时，在调用返回之前，进/线程会被阻塞等待，等待中的进/线程让出CPU使用权。
+
+非阻塞：在进/线程中，发起一个调用时，会立即返回。
+
+网络编程中会阻塞的函数：connect accept send recv
+
+在IO复用的模型中，事件循环（while循环）不能被阻塞在任何环节，所以应该采用非阻塞IO。
+
+把socket设置为非阻塞，这四个函数会有什么表现：
+
+* connect 不管是否能连上，都会直接返回失败，错误代码为EINPROGRESS。那如何知道连接是否成功：如果socket状态是可写的，就代表连接成功。
+* 如果已连接队列中没有socket  accept直接返回失败，错误代码为EAGAIN。
+* 如果没数据可读（接收缓冲区空） recv立即返回失败，错误代码为EAGAIN
+* 如果socket不可写，也就是说发送缓冲区满了，send立即返回失败，错误代码为EAGAIN。
+
+```cpp
+/*
+ * 程序名：tcpepoll1.cpp，此程序用于演示非阻塞IO。
+ * 作者：吴从周
+*/
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <sys/fcntl.h>
+#include <sys/epoll.h>
+
+// 把socket设置成非阻塞。
+int setnonblocking(int fd)
+{
+    int  flags;
+
+    // 获取fd的状态。
+    if  ((flags=fcntl(fd,F_GETFL,0))==-1)
+        flags = 0;
+
+    return fcntl(fd,F_SETFL,flags|O_NONBLOCK);
+}
+
+// 初始化服务端的监听端口。
+int initserver(int port);
+
+int main(int argc,char *argv[])
+{
+    if (argc != 2) { printf("usage: ./tcpepoll1 port\n"); return -1; }
+
+    // 初始化服务端用于监听的socket。
+    int listensock = initserver(atoi(argv[1]));
+    printf("listensock=%d\n",listensock);
+
+    setnonblocking(listensock);     // 把监听的socket设置为非阻塞。
+
+    while (true)
+    {
+        if (accept(listensock,0,0)==-1)
+        {
+            if (errno!=EAGAIN)
+            {
+                perror("accept:");   return -1;
+            }
+        }
+        else
+            break;
+    }
+
+    printf("客户端已连接。\n");
+
+return 0;
+
+    if (listensock < 0) { printf("initserver() failed.\n"); return -1; }
+
+    // 创建epoll句柄。
+    int epollfd=epoll_create(1);
+
+    // 为服务端的listensock准备读事件。
+    epoll_event ev;              // 声明事件的数据结构。
+    ev.data.fd=listensock;   // 指定事件的自定义数据，会随着epoll_wait()返回的事件一并返回。
+    // ev.data.ptr=(void*)"超女";   // 指定事件的自定义数据，会随着epoll_wait()返回的事件一并返回。
+    ev.events=EPOLLIN;      // 打算让epoll监视listensock的读事件。
+
+    epoll_ctl(epollfd,EPOLL_CTL_ADD,listensock,&ev);     // 把需要监视的socket和事件加入epollfd中。
+
+    epoll_event evs[10];      // 存放epoll返回的事件。
+
+    while (true)        // 事件循环。
+    {
+        // 等待监视的socket有事件发生。
+        int infds=epoll_wait(epollfd,evs,10,-1);
+
+        // 返回失败。
+        if (infds < 0)
+        {
+            perror("epoll() failed"); break;
+        }
+
+        // 超时。
+        if (infds == 0)
+        {
+            printf("epoll() timeout.\n"); continue;
+        }
+
+        // 如果infds>0，表示有事件发生的socket的数量。
+        for (int ii=0;ii<infds;ii++)       // 遍历epoll返回的数组evs。
+        {
+            // printf("ptr=%s,events=%d\n",evs[ii].data.ptr,evs[ii].events);
+
+            // 如果发生事件的是listensock，表示有新的客户端连上来。
+            if (evs[ii].data.fd==listensock)
+            {
+                struct sockaddr_in client;
+                socklen_t len = sizeof(client);
+                int clientsock = accept(listensock,(struct sockaddr*)&client,&len);
+
+                printf ("accept client(socket=%d) ok.\n",clientsock);
+
+                // 为新客户端准备读事件，并添加到epoll中。
+                ev.data.fd=clientsock;
+                ev.events=EPOLLIN;
+                epoll_ctl(epollfd,EPOLL_CTL_ADD,clientsock,&ev);
+            }
+            else
+            {
+                // 如果是客户端连接的socke有事件，表示有报文发过来或者连接已断开。
+                char buffer[1024]; // 存放从客户端读取的数据。
+                memset(buffer,0,sizeof(buffer));
+                if (recv(evs[ii].data.fd,buffer,sizeof(buffer),0)<=0)
+                {
+                    // 如果客户端的连接已断开。
+                    printf("client(eventfd=%d) disconnected.\n",evs[ii].data.fd);
+                    close(evs[ii].data.fd);            // 关闭客户端的socket
+                    // 从epollfd中删除客户端的socket，如果socket被关闭了，会自动从epollfd中删除，所以，以下代码不必启用。
+                    // epoll_ctl(epollfd,EPOLL_CTL_DEL,evs[ii].data.fd,0);
+                }
+                else
+                {
+                    // 如果客户端有报文发过来。
+                    printf("recv(eventfd=%d):%s\n",evs[ii].data.fd,buffer);
+
+                    // 把接收到的报文内容原封不动的发回去。
+                    send(evs[ii].data.fd,buffer,strlen(buffer),0);
+                }
+            }
+        }
+    }
+
+  return 0;
+}
+
+// 初始化服务端的监听端口。
+int initserver(int port)
+{
+    int sock = socket(AF_INET,SOCK_STREAM,0);
+    if (sock < 0)
+    {
+        perror("socket() failed"); return -1;
+    }
+
+    int opt = 1; unsigned int len = sizeof(opt);
+    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&opt,len);
+
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(port);
+
+    if (bind(sock,(struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
+    {
+        perror("bind() failed"); close(sock); return -1;
+    }
+
+    if (listen(sock,5) != 0 )
+    {
+        perror("listen() failed"); close(sock); return -1;
+    }
+
+    return sock;
+}
+```
+
+
+
 ## 实现并发服务器
 
 前面实现的回声服务器一次只能给一个客户端提供服务，提供完服务才可以给下一个提供服务。如何实现同时给多个客户端提供服务？（这里的同时是宏观上的同时。）
@@ -3310,6 +4411,243 @@ void error_handling(char * message)
 }
 ```
 
+B站码农论坛：
+
+思路：将accept函数放到while循环中，如果pid大于0，就continue循环，父进程继续处理请求连接的客户端。此外还要注意关闭父进程的cfd和子进程的lfd。和前面的代码思路是类似的。只不过多了些东西：
+
+* 将socket函数封装
+* 增加了父子进程信号处理函数
+* 信号处理函数中添加了释放socket的代码
+
+```cpp
+/*
+ 此程序用于演示多进程的socket服务端
+*/
+#include <iostream>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <netdb.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+using namespace std;
+
+class ctcpserver         // TCP通讯的服务端类。
+{
+private:
+  int    m_listenfd;        // 监听的socket，-1表示未初始化。
+  int    m_clientfd;        // 客户端连上来的socket，-1表示客户端未连接。
+  string m_clientip;        // 客户端字符串格式的IP。
+  unsigned short m_port;    // 服务端用于通讯的端口。
+public:
+  ctcpserver():m_listenfd(-1),m_clientfd(-1) {}
+
+  // 初始化服务端用于监听的socket。
+  bool initserver(const unsigned short in_port)
+  {
+    // 第1步：创建服务端的socket。
+    if ( (m_listenfd=socket(AF_INET,SOCK_STREAM,0))==-1) return false;
+
+    m_port=in_port;
+
+    // 第2步：把服务端用于通信的IP和端口绑定到socket上。
+    struct sockaddr_in servaddr;                // 用于存放协议、端口和IP地址的结构体。
+    memset(&servaddr,0,sizeof(servaddr));
+    servaddr.sin_family=AF_INET;                // ①协议族，固定填AF_INET。
+    servaddr.sin_port=htons(m_port);            // ②指定服务端的通信端口。
+    servaddr.sin_addr.s_addr=htonl(INADDR_ANY); // ③如果操作系统有多个IP，全部的IP都可以用于通讯。
+
+    // 绑定服务端的IP和端口（为socket分配IP和端口）。
+    if (bind(m_listenfd,(struct sockaddr *)&servaddr,sizeof(servaddr))==-1)
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    // 第3步：把socket设置为可连接（监听）的状态。
+    if (listen(m_listenfd,5) == -1 )
+    {
+      close(m_listenfd); m_listenfd=-1; return false;
+    }
+
+    return true;
+    w
+  }
+
+  // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+  // 如果没有已连接的客户端，accept()函数将阻塞等待。
+  bool accept()
+  {
+    struct sockaddr_in caddr;        // 客户端的地址信息。
+    socklen_t addrlen=sizeof(caddr); // struct sockaddr_in的大小。
+    if ((m_clientfd=::accept(m_listenfd,(struct sockaddr *)&caddr,&addrlen))==-1) return false;
+
+    m_clientip=inet_ntoa(caddr.sin_addr);  // 把客户端的地址从大端序转换成字符串。
+
+    return true;
+  }
+
+  // 获取客户端的IP(字符串格式)。
+  const string & clientip() const
+  {
+    return m_clientip;
+  }
+
+  // 向对端发送报文，成功返回true，失败返回false。
+  bool send(const string &buffer)
+  {
+    if (m_clientfd==-1) return false;
+
+    if ( (::send(m_clientfd,buffer.data(),buffer.size(),0))<=0) return false;
+
+    return true;
+  }
+
+  // 接收对端的报文，成功返回true，失败返回false。
+  // buffer-存放接收到的报文的内容，maxlen-本次接收报文的最大长度。
+  bool recv(string &buffer,const size_t maxlen)
+  {
+    buffer.clear();         // 清空容器。
+    buffer.resize(maxlen);  // 设置容器的大小为maxlen。
+    int readn=::recv(m_clientfd,&buffer[0],buffer.size(),0);  // 直接操作buffer的内存。
+    if (readn<=0) { buffer.clear(); return false; }
+    buffer.resize(readn);   // 重置buffer的实际大小。
+
+    return true;
+  }
+
+  // 关闭监听的socket。
+  bool closelisten()
+  {
+    if (m_listenfd==-1) return false;
+
+    ::close(m_listenfd);
+    m_listenfd=-1;
+    return true;
+  }
+
+  // 关闭客户端连上来的socket。
+  bool closeclient()
+  {
+    if (m_clientfd==-1) return false;
+
+    ::close(m_clientfd);
+    m_clientfd=-1;
+    return true;
+  }
+
+ ~ctcpserver() { closelisten(); closeclient(); }
+};
+
+ctcpserver tcpserver;
+
+void FathEXIT(int sig);  // 父进程的信号处理函数。
+void ChldEXIT(int sig);  // 子进程的信号处理函数。
+
+int main(int argc,char *argv[])
+{
+  if (argc!=2)
+  {
+    cout << "Using:./demo10 通讯端口\nExample:./demo10 5005\n\n";
+    cout << "注意：运行服务端程序的Linux系统的防火墙必须要开通5005端口。\n";
+    cout << "      如果是云服务器，还要开通云平台的访问策略。\n\n";
+    return -1;
+  }
+
+  // 忽略全部的信号，不希望被打扰。顺便解决了僵尸进程的问题。
+  // 子进程退出时会给父进程发 SIGCHLD，如果父进程不回收（wait）子进程，子进程就会变成僵尸进程。而把 SIGCHLD 设为忽略后，子进程退出时操作系统会自动回收它，就不会产生僵尸进程了。
+  for (int ii=1;ii<=64;ii++) signal(ii,SIG_IGN);
+
+  // 设置信号,在shell状态下可用 "kill 进程号" 或 "Ctrl+c" 正常终止进程
+  // 但请不要用 "kill -9 +进程号" 强行终止
+  signal(SIGTERM,FathEXIT); signal(SIGINT,FathEXIT);  // SIGTERM（kill） 15 SIGINT（ctrl+c） 2
+
+  if (tcpserver.initserver(atoi(argv[1]))==false) // 初始化服务端用于监听的socket。
+  {
+    perror("initserver()"); return -1;
+  }
+
+  while (true)
+  {
+    // 受理客户端的连接（从已连接的客户端中取出一个客户端），
+    // 如果没有已连接的客户端，accept()函数将阻塞等待。
+    if (tcpserver.accept()==false)
+    {
+      perror("accept()"); return -1;
+    }
+
+    int pid=fork();
+    if (pid==-1) { perror("fork()"); return -1; }  // 系统资源不足。
+    if (pid>0)
+    { // 父进程。
+      tcpserver.closeclient();  // 父进程关闭客户端连接的socket。
+      continue;                 // 父进程返回到循环开始的位置，继续受理客户端的连接。
+    }
+
+    tcpserver.closelisten();    // 子进程关闭监听的socket。
+
+    // 子进程需要重新设置信号。
+    signal(SIGTERM,ChldEXIT);   // 子进程的退出函数与父进程不一样。
+    signal(SIGINT ,SIG_IGN);    // 子进程不需要捕获SIGINT信号。
+
+    // 子进程负责与客户端进行通讯。
+    cout << "客户端已连接(" << tcpserver.clientip() << ")。\n";
+
+    string buffer;
+    while (true)
+    {
+      // 接收对端的报文，如果对端没有发送报文，recv()函数将阻塞等待。
+      if (tcpserver.recv(buffer,1024)==false)
+      {
+        perror("recv()"); break;
+      }
+      cout << "接收：" << buffer << endl;
+
+      buffer="ok";
+      if (tcpserver.send(buffer)==false)  // 向对端发送报文。
+      {
+        perror("send"); break;
+      }
+      cout << "发送：" << buffer << endl;
+    }
+
+    return 0;  // 子进程一定要退出，否则又会回到accept()函数的位置。
+  }
+}
+
+// 父进程的信号处理函数。
+void FathEXIT(int sig)
+{
+  // 以下代码是为了防止信号处理函数在执行的过程中再次被信号中断。
+  signal(SIGINT,SIG_IGN); signal(SIGTERM,SIG_IGN);
+
+  cout << "父进程退出，sig=" << sig << endl;
+
+  kill(0,SIGTERM);     // 向全部的子进程发送15的信号，通知它们退出。
+
+  // 在这里增加释放资源的代码（全局的资源）。
+  tcpserver.closelisten();       // 父进程关闭监听的socket。
+
+  exit(0);//不能写return，写return会回到被打断的地方继续执行。exit可以直接结束整个进程。
+}
+
+// 子进程的信号处理函数。
+void ChldEXIT(int sig)
+{
+  // 以下代码是为了防止信号处理函数在执行的过程中再次被信号中断。
+  signal(SIGINT,SIG_IGN); signal(SIGTERM,SIG_IGN);
+
+  cout << "子进程" << getpid() << "退出，sig=" << sig << endl;
+
+  // 在这里增加释放资源的代码（只释放子进程的资源）。
+  tcpserver.closeclient();       // 子进程关闭客户端连上来的socket。
+
+  exit(0);
+}
+```
+
 
 
 ### 多线程
@@ -3700,6 +5038,16 @@ void error_handling(char* msg)
 
 ![image-20260311164635527](https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260311164635527.png)
 
+IO多路复用主要有select、poll、epoll。select一个进程最多处理1024个连接，poll能处理数千个连接，而epoll能处理百万连接。
+
+再讲这几个技术前，先理清网络通讯的读写事件。
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260610162252555.png" alt="image-20260610162252555" style="zoom: 25%;" />
+
+<img src="https://xubenshan-pic.oss-cn-beijing.aliyuncs.com/img/image-20260610162342319.png" alt="image-20260610162342319" style="zoom:25%;" />
+
+> 读事件的第一条讲的是监听socket：已连接队列里有握手完成、准备好的连接，这时监听 socket 变得"可读"，提示你"快调 accept() 把它取走，accept不会阻塞"。后两个讲的是和客户端进行通信的socket。
+
 #### select
 
 select可以使一个进程维护多个文件描述符。
@@ -3730,15 +5078,15 @@ int maxfd, fd_set * readset, fd_set * writeset, fd_set * exceptset, const struct
 
 > 参数1：maxfd，监视对象文件描述符数量。(最大的文件描述符值+1)
 >
-> 参数2：readset，将所有关注 “是否存在带读取数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
+> 参数2：readset（关注读事件），将所有关注 “是否存在带读取数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
 >
-> 参数3：writeset，将所有关注 “是否可传输无阻塞数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
+> 参数3：writeset（关注写事件），将所有关注 “是否可传输无阻塞数据” 的文件描述符注册到fd_set型变量，并传递其地址值。
 >
-> 参数4：exceptset，将所有关注 “是否发生异常” 的文件描述符注册到fd_set型变量，并传递其地址值。
+> 参数4：exceptset，将所有关注 “是否发生异常” 的文件描 述符注册到fd_set型变量，并传递其地址值。
 >
 > 参数5：timeout，调用select函数后，为防止陷入无限阻塞的状态，传递超时信息。
 >
-> 返回值：发生错误时返回-1，超时返回时返回0。因发生关注的事件返回时，返回大于0的值，该值是发生事件的文件描述符数。
+> 返回值：发生错误时返回-1，超时返回时返回0。因发生关注的事件返回时，返回大于0的值，该值是发生事件的文件描述符个数。
 
 第五个参数我们之前学过：
 
@@ -3746,7 +5094,7 @@ int maxfd, fd_set * readset, fd_set * writeset, fd_set * exceptset, const struct
 struct timeval
 {
 	long tv_sec;	//seconds
-	long tv_usec;	//microseconds
+	long tv_usec;	//microseconds 微秒
 }
 ```
 
@@ -3808,8 +5156,6 @@ int main(int argc, char * argv[])
 	return 0;
 }
 ```
-
-
 
 使用select函数实现IO多路复用
 
@@ -3916,17 +5262,207 @@ void error_handling(char * buf)
 }
 ```
 
-
-
-小林coding：
-
-> select 实现多路复用的方式是：将已连接的 Socket 都放到一个文件描述符集合，然后调用 select 函数将文件描述符集合拷贝到内核里，让内核来检查是否有网络事件产生，检查的方式很粗暴，就是通过遍历文件描述符集合的方式，当检查到有事件产生后，将此Socket标记为可读或可写，接着再把整个文件描述符集合拷贝回用户态里，然后用户态还需要再通过遍历的方法找到可读或可与的Socket，然后再对其处理。
+> 小林coding对select的解释：select 实现多路复用的方式是：将已连接的 Socket 都放到一个文件描述符集合，然后调用 select 函数将文件描述符集合拷贝到内核里，让内核来检查是否有网络事件产生，检查的方式很粗暴，就是通过遍历文件描述符集合的方式，当检查到有事件产生后，将此Socket标记为可读或可写，接着再把整个文件描述符集合拷贝回用户态里，然后用户态还需要再通过遍历的方法找到可读或可与的Socket，然后再对其处理。
 >
 > 所以，对于select 这种方式，需要进行2次遍历」文件描述符集合，一次是在内核态里，一个次是在用户态里，而且还会发生2次「拷贝」文件描述符集合，先从用户空间传入内核空间，由内核修改后，再传出到用户空间中。
+>
+> 2次拷贝的细节：你调用 `select` 的那一刻，内核需要知道"你到底要监视哪些 fd"。于是内核把你准备好的那个 `readfds` 集合，**从用户空间整个拷贝一份到内核空间**。这样内核才能拿着这份集合，去逐个检查里面标记的 fd 当前是不是就绪了。
+>
+> 内核检查完之后（哪些可读、哪些不可读），它会**直接修改**内核里那份集合：把**没就绪**的 fd 对应的位清掉，只**留下就绪**的那些位还是 1。换句话说，内核把"我要监视谁"的集合，改写成了"现在谁就绪了"的结果集合。
+>
+> 然后内核再把这份改好的结果集合，**从内核空间拷贝回用户空间**，覆盖掉你原来那个cpy_reads。`select` 返回后，cpy_reads 里就只剩下就绪 fd 的位还是 1 了，再用 `FD_ISSET` 一个个查，就知道是哪些 fd 有事件了。
 
+select是水平触发模式：select监视的socket如果发生了事件，select会立即返回，通知应用程序处理事件；如果事件没有被处理或者没有处理完，再次调用select的时候会立即再通知。关于水平触发模式还会在后续章节提及。
 
+select存在的问题：
+
+*  采用轮询方式扫描bitmap，性能会随着socket数量增加而下降。
+* 每次调用select，会发生两次bitmap拷贝。
+* bitmap的大小（决定单个进程/线程能管理的socket数量）由FD_SETSIZE宏设置，默认是1024个，可以修改，但效率会降低。
 
 #### poll
+
+*  poll 和 select 原理基本一致，最大的区别是去掉了最大 1024 个文件描述符的限制。
+
+* select 使用固定长度的 BitsMap，表示文件描述符集合，而且所支持的文件描述符的个数是有限制的，在 Linux 系统中，由内核中的 FD_SETSIZE 限制， 默认最大值为 1024，只能监听 0~1023 的文件描述符。
+
+* poll 不再用 BitsMap 来存储所关注的文件描述符，取而代之用结构体数组，传入内核后转换成了链表，突破了 select 的文件描述符个数限制，当然还会受到系统文件描述符限制。（一个进程默认最多打开的fd个数是1024，但是可以通过ulimit -n来修改。）
+
+* 调用poll前不需要拷贝结构体数组。
+
+```
+struct pollfd
+{
+	int fd; //需要监视的socket
+	short events;//需要监视的事件 POLLIN读事件 POLLOUT写事件 POLLIN｜POLLOUT 既监视读也监视写
+	short revents; //poll返回的事件
+}
+```
+
+定义一个结构体数组fds，fds[i].fd为-1时，poll将忽略该socket。
+
+poll函数：`int poll(struct pollfd *fds, nfds_t nfds, int timeout);` 返回值和select函数一样。
+
+| 参数      | 含义                             |
+| --------- | -------------------------------- |
+| `fds`     | `pollfd` 数组，里面放要监听的 fd |
+| `nfds`    | 一般设为maxfd+1                  |
+| `timeout` | 超时时间，单位是毫秒             |
+
+当调用 poll 函数时，内核会检查每个 pollfd 结构体中列出的文件描述符，看看是否有任何指定的事件发生。如果有，内核将会在 revents 字段中设置相应的位，以指示哪些事件已经发生。然后poll函数返回，应用程序可以检查每个 pollfd 结构体的 revents 字段来确定每个文件描述符上发生了哪些事件。当 poll 调用之后用revents & POLLIN 判断某事件是否就绪。
+
+```cpp
+/*
+ * 程序名：tcppoll.cpp，此程序用于演示采用poll模型实现网络通讯的服务端。
+ * 作者：吴从周
+*/
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <sys/fcntl.h>
+
+// 初始化服务端的监听端口。
+int initserver(int port);
+
+int main(int argc,char *argv[])
+{
+    if (argc != 2) { printf("usage: ./tcppoll port\n"); return -1; }
+
+    // 初始化服务端用于监听的socket。
+    int listensock = initserver(atoi(argv[1]));
+    printf("listensock=%d\n",listensock);
+
+    if (listensock < 0) { printf("initserver() failed.\n"); return -1; }
+
+    pollfd fds[2048];                 // fds存放需要监视的socket。
+
+    // 初始化数组，把全部的socket设置为-1，如果数组中的socket的值为-1，那么，poll将忽略它。
+    for (int ii=0;ii<2048;ii++)
+        fds[ii].fd=-1;
+
+    // 打算让poll监视listensock读事件。
+    fds[listensock].fd=listensock;
+    fds[listensock].events=POLLIN;        // POLLIN表示读事件，POLLOUT表示写事件。
+    // fds[listensock].events=POLLIN|POLLOUT;
+
+    int maxfd=listensock;        // fds数组中需要监视的socket的实际大小。
+
+    while (true)        // 事件循环。
+    {
+        // 调用poll() 等待事件的发生（监视哪些socket发生了事件)。
+        int infds=poll(fds,maxfd+1,10000);      // 超时时间为10秒。
+
+        // 如果infds<0，表示调用poll()失败。
+        if (infds < 0)
+        {
+            perror("poll() failed"); break;
+        }
+
+        // 如果infds==0，表示poll()超时。
+        if (infds == 0)
+        {
+            printf("poll() timeout.\n"); continue;
+        }
+
+        // 如果infds>0，表示有事件发生，infds存放了已发生事件的个数。
+        for (int eventfd=0;eventfd<=maxfd;eventfd++)
+        {
+            if (fds[eventfd].fd<0) continue;                               // 如果fd为负，忽略它。
+
+            if ((fds[eventfd].revents&POLLIN)==0)  continue;  // 如果没有读事件，continue
+
+            // 如果发生事件的是listensock，表示已连接队列中有已经准备好的socket（有新的客户端连上来了）。
+            if (eventfd==listensock)
+            {
+                struct sockaddr_in client;
+                socklen_t len = sizeof(client);
+                int clientsock = accept(listensock,(struct sockaddr*)&client,&len);
+                if (clientsock < 0) { perror("accept() failed"); continue; }
+
+                printf ("accept client(socket=%d) ok.\n",clientsock);
+
+                // 修改fds数组中clientsock位置的元素。
+                fds[clientsock].fd=clientsock;
+                fds[clientsock].events=POLLIN;
+
+                if (maxfd<clientsock) maxfd=clientsock;    // 更新maxfd的值。
+            }
+            else
+            {
+                // 如果是客户端连接的socke有事件，表示有报文发过来了或者连接已断开。
+
+                char buffer[1024]; // 存放从客户端读取的数据。
+                memset(buffer,0,sizeof(buffer));
+                if (recv(eventfd,buffer,sizeof(buffer),0)<=0)
+                {
+                    // 如果客户端的连接已断开。
+                    printf("client(eventfd=%d) disconnected.\n",eventfd);
+
+                    close(eventfd);               // 关闭客户端的socket。
+                    fds[eventfd].fd=-1;        // 修改fds数组中clientsock位置的元素，置为-1，poll将忽略该元素。
+
+                    // 重新计算maxfd的值，注意，只有当eventfd==maxfd时才需要计算。
+                    if (eventfd == maxfd)
+                    {
+                        for (int ii=maxfd;ii>0;ii--)  // 从后面往前找。
+                        {
+                            if (fds[ii].fd!=-1)
+                            {
+                                maxfd = ii; break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // 如果客户端有报文发过来。
+                    printf("recv(eventfd=%d):%s\n",eventfd,buffer);
+
+                    send(eventfd,buffer,strlen(buffer),0);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+// 初始化服务端的监听端口。
+int initserver(int port)
+{
+    int sock = socket(AF_INET,SOCK_STREAM,0);
+    if (sock < 0)
+    {
+        perror("socket() failed"); return -1;
+    }
+
+    int opt = 1; unsigned int len = sizeof(opt);
+    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&opt,len);
+
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(port);
+
+    if (bind(sock,(struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
+    {
+        perror("bind() failed"); close(sock); return -1;
+    }
+
+    if (listen(sock,5) != 0 )
+    {
+        perror("listen() failed"); close(sock); return -1;
+    }
+
+    return sock;
+}
+```
+
+
 
 #### epoll
 
@@ -3956,10 +5492,10 @@ select方式中为了保存监视的文件描述符，直接声明了fd_set变�
 ```cpp
 struct epoll_event
 {
-    __unit32_t events;
+    __unit32_t events; //事件 EPOLLIN EPOLLOUT
     epoll_data_t data;
 }
-typedef union epoll_data
+typedef union epoll_data //共同体 union 就是多个变量共用同一块内存空间 不能同时使用多个成员。	
 {
     void* ptr;
     int fd;
@@ -3972,7 +5508,7 @@ typedef union epoll_data
 
 第一个函数：`epoll_create`
 
-`int epoll_create(int size);` size没什么用，操作系统会忽略。该函数返回epoll文件描述符，失败返回-1。
+`int epoll_create(int size);` size没什么用，操作系统会自动忽略，填一个大于0的数即可。该函数返回epoll文件描述符，失败返回-1。
 
 调用epoll_create函数时创建的文件描述符保存空间称为「epoll例程」
 
@@ -4029,17 +5565,17 @@ epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 >
 > 参数3：maxevents，第二个参数中可以保存的最大事件数。
 >
-> 参数4：timeout，以1/1000秒为单位的等待时间，传递-1时，一直等待直到发生事件。
+> 参数4：timeout，以1/1000秒为单位的等待时间，传递-1时，表示不启动超时，一直等待直到发生事件。
 
 该函数的调用方法如下。需要注意的是，第二个参数所指定缓冲需要动态分配。
 
 ```cpp
 int event_cnt;
-struct epoll_event* ep_events;
+struct epoll_event* ep_events;//指向epoll_event结构体数组的指针
 ...
 ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE); //EPOLL_SIZE是宏常量
 ...
-events_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1);
+events_cnt = epoll_wait(epfd, ep_events, EPOLL_SIZE, -1); 
 ```
 
 epoll示例：
@@ -4056,7 +5592,7 @@ epoll示例：
 #include<sys/epoll.h>
 
 #define BUF_SIZE 100
-#define EPOLL_SIZE 50	//ºê³£Á¿
+#define EPOLL_SIZE 50	
 void error_handling(char* buf);
 
 int main(int argc, char* argv[])
@@ -4144,7 +5680,172 @@ void error_handling(char* buf)
 }
 ```
 
+```cpp
+/*
+ * 程序名：tcpepoll.cpp，此程序用于演示采用epoll模型实现网络通讯的服务端。
+ * 作者：吴从周
+*/
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <sys/fcntl.h>
+#include <sys/epoll.h>
 
+// 初始化服务端的监听端口。
+int initserver(int port);
+
+int main(int argc,char *argv[])
+{
+    if (argc != 2) { printf("usage: ./tcpepoll port\n"); return -1; }
+
+    // 初始化服务端用于监听的socket。
+    int listensock = initserver(atoi(argv[1]));
+    printf("listensock=%d\n",listensock);
+
+    if (listensock < 0) { printf("initserver() failed.\n"); return -1; }
+
+    // 创建epoll句柄。
+    int epollfd=epoll_create(1);
+
+    // 为服务端的listensock准备读事件。
+    epoll_event ev;              // 声明事件的数据结构。
+    ev.data.fd=listensock;   // 指定事件的自定义数据，会随着epoll_wait()返回的事件一并返回。
+    // ev.data.ptr=(void*)"超女";   // 指定事件的自定义数据，会随着epoll_wait()返回的事件一并返回。
+    ev.events=EPOLLIN;      // 打算让epoll监视listensock的读事件。
+
+    epoll_ctl(epollfd,EPOLL_CTL_ADD,listensock,&ev);     // 把需要监视的socket和事件加入epollfd中。
+
+    epoll_event evs[10];      // 存放epoll返回的事件。
+
+    while (true)        // 事件循环。
+    {
+        // 等待监视的socket有事件发生。
+        int infds=epoll_wait(epollfd,evs,10,-1);
+
+        // 返回失败。
+        if (infds < 0)
+        {
+            perror("epoll() failed"); break;
+        }
+
+        // 超时。
+        if (infds == 0)
+        {
+            printf("epoll() timeout.\n"); continue;
+        }
+
+        // 如果infds>0，表示有事件发生的socket的数量。
+        for (int ii=0;ii<infds;ii++)       // 遍历epoll返回的数组evs。
+        {
+            // printf("ptr=%s,events=%d\n",evs[ii].data.ptr,evs[ii].events);
+
+            // 如果发生事件的是listensock，表示有新的客户端连上来。
+            if (evs[ii].data.fd==listensock)
+            {
+                struct sockaddr_in client;
+                socklen_t len = sizeof(client);
+                int clientsock = accept(listensock,(struct sockaddr*)&client,&len);
+
+                printf ("accept client(socket=%d) ok.\n",clientsock);
+
+                // 为新客户端准备读事件，并添加到epoll中。
+                ev.data.fd=clientsock;
+                ev.events=EPOLLIN;
+                epoll_ctl(epollfd,EPOLL_CTL_ADD,clientsock,&ev);
+            }
+            else
+            {
+                // 如果是客户端连接的socke有事件，表示有报文发过来或者连接已断开。
+                char buffer[1024]; // 存放从客户端读取的数据。
+                memset(buffer,0,sizeof(buffer));
+                if (recv(evs[ii].data.fd,buffer,sizeof(buffer),0)<=0)//recv返回-1有很多种情况，比如EAGAIN / EWOULDBLOCK：表示"现在暂时没有数据可读"。EINTR：表示 recv 在收到数据之前被信号打断了。等等。但是这个程序中socket是阻塞的，因为创建的时候没有加O_NONBLOCK ,所以 recv 没数据时只会一直等，绝不会返回 EAGAIN。 也没有加信号机制，所以不会返回EINTR。在这段代码里返回 -1，几乎只剩下 ECONNRESET 这类真正的异常断开（对端发了 RST，比如对端进程崩了、强制关闭）。而这本来就是一种（非正常的）断开，close 掉它是对的。recv返回0代表是对端正常关闭，所以这里的判断逻辑没问题。
+                {
+                    // 如果客户端的连接已断开。
+                    printf("client(eventfd=%d) disconnected.\n",evs[ii].data.fd);
+                    close(evs[ii].data.fd);            // 关闭客户端的socket
+                    // 从epollfd中删除客户端的socket，如果socket被关闭了，会自动从epollfd中删除，所以，以下代码不必启用。
+                    // epoll_ctl(epollfd,EPOLL_CTL_DEL,evs[ii].data.fd,0);
+                }
+                else
+                {
+                    // 如果客户端有报文发过来。
+                    printf("recv(eventfd=%d):%s\n",evs[ii].data.fd,buffer);
+
+                    // 把接收到的报文内容原封不动的发回去。
+                    send(evs[ii].data.fd,buffer,strlen(buffer),0);
+                }
+            }
+        }
+    }
+
+  return 0;
+}
+
+// 初始化服务端的监听端口。
+int initserver(int port)
+{
+    int sock = socket(AF_INET,SOCK_STREAM,0);
+    if (sock < 0)
+    {
+        perror("socket() failed"); return -1;
+    }
+
+    int opt = 1; unsigned int len = sizeof(opt);
+    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&opt,len);
+
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(port);
+
+    if (bind(sock,(struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
+    {
+        perror("bind() failed"); close(sock); return -1;
+    }
+
+    if (listen(sock,5) != 0 )
+    {
+        perror("listen() failed"); close(sock); return -1;
+    }
+
+    return sock;
+}
+```
+
+> 把 `recv` 返回 `-1` 的常见 `errno` 按性质分两类列清楚：
+>
+> 第一类——**fd 有效，连接相关**（正常运行中可能遇到）：
+>
+> - `EAGAIN` / `EWOULDBLOCK`：非阻塞 socket，此刻没数据。不是断开。
+> - `EINTR`：被信号打断。不是断开，应重试。
+> - `ECONNRESET`：对端发 RST，异常断开。是断开。
+> - `ETIMEDOUT`：连接超时（比如 keepalive 探测失败）。算断开。
+>
+> 第二类——**fd 或参数本身就不对**（说明代码有 bug）：
+>
+> - `EBADF`：fd 不是有效的打开描述符（传了坏 fd 或已关闭的 fd）。
+> - `ENOTSOCK`：fd 有效，但它指向的不是一个 socket（比如是个普通文件）。
+> - `EFAULT`：接收缓冲区的指针指向了非法内存。
+> - `EINVAL`：参数非法。
+
+水平触发和边缘触发机制：
+
+水平触发：
+
+◆ 读事件：如果 `epoll_wait` 触发了读事件，表示有数据可读，如果程序没有把数据读完，再次调用 `epoll_wait` 的时候，将立即再次触发读事件。
+
+◆ 写事件：如果发送缓冲区没有满，表示可以写入数据，只要缓冲区没有被写满，再次调用 `epoll_wait` 的时候，将立即再次触发写事件。
+
+边缘触发：
+
+◆ 读事件：`epoll_wait` 触发读事件后，不管程序有没有处理读事件，`epoll_wait` 都不会再触发读事件，只有当新的数据到达时，才再次触发读事件。
+
+◆ 写事件：`epoll_wait` 触发写事件之后，如果发送缓冲区仍可以写（发送缓冲区没有满），`epoll_wait` 不会再次触发写事件，只有当发送缓冲区由**满**变成**不满**时，才再次触发写事件。
 
 ==边缘触发和水平触发的区别在于发生事件的时间点。==
 
@@ -4295,7 +5996,7 @@ event.events = EPOLLIN; //改动这一行
 
 | select模型是条件触发还是边缘触发                             |
 | ------------------------------------------------------------ |
-| select模型是以条件触发的方式工作的，输入缓冲中如果还剩有数据，肯定会注册事件。 |
+| select模型是以条件触发（水平触发）的方式工作的，输入缓冲中如果还剩有数据，肯定会注册事件。 |
 
 接下来先来讲一下如何把套接字改成非阻塞方式。（IO的时候不会阻塞等待）
 
