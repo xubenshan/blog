@@ -51,6 +51,65 @@ const getProblemChildren = (): { text: string; link: string }[] => {
     });
 };
 
+const cppMemoryChildren = [
+  {
+    text: "第一讲 primitives",
+    link: toHtmlLink("cpp/C++内存管理/第一讲primitives"),
+  },
+  {
+    text: "第二讲 std::allocator",
+    link: toHtmlLink("cpp/C++内存管理/第二讲std_allocator"),
+  },
+  {
+    text: "第三讲 malloc/free",
+    link: toHtmlLink("cpp/C++内存管理/第三讲malloc_free"),
+  },
+  {
+    text: "第四讲 Loki allocator",
+    link: toHtmlLink("cpp/C++内存管理/第四讲loki_allocator"),
+  },
+  {
+    text: "第五讲 other allocator",
+    link: toHtmlLink("cpp/C++内存管理/第五讲other allocator"),
+  },
+];
+
+const cppChildren = [
+  {
+    text: "C++ 入门",
+    link: toHtmlLink("cpp/C++入门"),
+  },
+  {
+    text: "面向对象编程",
+    link: toHtmlLink("cpp/C++核心编程"),
+  },
+  {
+    text: "模板及 STL 技术",
+    link: toHtmlLink("cpp/C++提高编程"),
+  },
+  {
+    text: "项目构建",
+    link: toHtmlLink("cpp/项目构建工具"),
+  },
+  {
+    text: "C++ 新特性",
+    link: toHtmlLink("cpp/C++新特性"),
+  },
+  {
+    text: "C++ 并发编程",
+    link: toHtmlLink("cpp/C++并发编程"),
+  },
+  {
+    text: "C++ 语法拾遗",
+    link: toHtmlLink("cpp/语法拾遗"),
+  },
+  {
+    text: "C++ 内存管理",
+    collapsible: true,
+    children: cppMemoryChildren,
+  },
+];
+
 const baguwenChildren = [
   "",
   {
@@ -77,7 +136,7 @@ export default sidebar({
       icon: "laptop-code",
       prefix: "cpp/",
       // link: "demo/",
-      children: "structure",
+      children: cppChildren,
     },
     {
       text: "算法",
@@ -123,6 +182,7 @@ export default sidebar({
   ],
 
   "/八股文/": baguwenChildren,
+  "/cpp/": cppChildren,
 
   // "/cpp/":  "structure",
   // "/algorithm/":  "structure",

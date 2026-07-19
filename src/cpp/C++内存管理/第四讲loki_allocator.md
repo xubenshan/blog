@@ -1,3 +1,11 @@
+---
+title: 第四讲 Loki allocator
+author: 小熊
+category:
+  - 编程基础
+  - C++ 内存管理
+---
+
 ## 三个class结构
 
 嵌套的数据结构设计：最底层是chunk，chunk有三个成员，firstAvailableblock代表下次可以用的第一个区块索引；blocks available代表可用区块的数量。依次往上，最高层是smallobjallocator。用户看到的是smallobjallocator。

@@ -1,3 +1,11 @@
+---
+title: 第一讲 primitives
+author: 小熊
+category:
+  - 编程基础
+  - C++ 内存管理
+---
+
 ## C++内存管理 ##
 
 ### 一、四种内存分配和释放方法 ###
@@ -12,13 +20,13 @@
 
 ![](https://i.imgur.com/lljUGp1.png)
 
-allocator<int>形成了一个类型，后面加() 创建了一个临时对象，生命周期就是这条赋值语句。
+`allocator<int>`形成了一个类型，后面加() 创建了一个临时对象，生命周期就是这条赋值语句。
 
 对于GNU C，不同版本又有所不同：
 
 ![](https://i.imgur.com/xkUvBlJ.png)
 
-这张图中的__gnu_cxx::__pool_alloc<T>().allocate()对应于上张图中的allocator<T>().allocate()。
+这张图中的`__gnu_cxx::__pool_alloc<T>().allocate()`对应于上张图中的`allocator<T>().allocate()`。
 
 通过malloc和new分配内存、通过free和delete释放内存是十分常用的，通过::operator new操作内存比较少见，allocator分配器操作内存在STL源码中使用较多，对于不同的编译环境使用也有所不同。下面这个例子是基与VS2013环境做测试的:
 
@@ -86,7 +94,7 @@ allocator<int>形成了一个类型，后面加() 创建了一个临时对象，
 
 ![](https://i.imgur.com/wFWZoad.png)
 
-可见 int* p4 = allocator<int>().allocate(3, (int*)0) 操作成功申请了三个int的空间。
+可见 `int* p4 = allocator<int>().allocate(3, (int*)0)` 操作成功申请了三个int的空间。
 
 ### 二、基本构件之 new/delete expression ###
 

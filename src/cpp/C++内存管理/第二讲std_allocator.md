@@ -1,3 +1,11 @@
+---
+title: 第二讲 std::allocator
+author: 小熊
+category:
+  - 编程基础
+  - C++ 内存管理
+---
+
 ## std::allocator ##
 
 ### 一、malloc()内部原理 ###
@@ -62,7 +70,7 @@ G4.9标准分配器只是类的关系变复杂了，除此之外，也没有特�
 
 ![](https://i.imgur.com/AHgQElz.png)
 
-cookie_test第一个实参是`_pool_alloc<double>()`，(加括号是表示创建临时对象)，表示分配器的类型是``_pool_alloc<double>`。第二个实参是1，传入cookie_test后，alloc.allocate(1)。表示分配一个double类型的空间，也就是八个字节。
+cookie_test第一个实参是`_pool_alloc<double>()`，(加括号是表示创建临时对象)，表示分配器的类型是`_pool_alloc<double>`。第二个实参是1，传入cookie_test后，alloc.allocate(1)。表示分配一个double类型的空间，也就是八个字节。
 
 分配了三次，打印出地址，会发现相距8个字节。可以看出用alloc分配器分配的内存没有了cookie。
 
@@ -492,8 +500,6 @@ set_malloc_handler是个函数指针，里面传入一个void (*f)()类型函数
 ![](https://i.imgur.com/hK3r07F.png)
 
 到这里，分配器只剩下refill函数没有分析了，下面将重点讨论该函数。不过在讨论refill函数之前有必要分析chunk_alloc函数：
-
-
 
 
 

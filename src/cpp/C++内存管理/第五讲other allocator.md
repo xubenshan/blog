@@ -1,3 +1,11 @@
+---
+title: 第五讲 other allocator
+author: 小熊
+category:
+  - 编程基础
+  - C++ 内存管理
+---
+
 一般我们会把分配器用于容器中，不会自己手动使用分配器分配内存。比如：
 
 ```cpp

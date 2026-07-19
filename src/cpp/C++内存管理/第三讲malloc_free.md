@@ -1,3 +1,11 @@
+---
+title: 第三讲 malloc/free
+author: 小熊
+category:
+  - 编程基础
+  - C++ 内存管理
+---
+
 ## VC6内存分配 ##
 
 通过VC6调用main函数之前的初始化行为来分析VC6的内存管理。

@@ -106,7 +106,7 @@ vector<int> v2{10};  // 把v2初始化为1个元素，这个元素的值是10。
 vector<int> v2{3,5,8};  // 把v3初始化为3个元素，值分别是3、5、8。
 ```
 
-头文件<initializer_list>提供了对模板类initializer_list的支持，这个类包含成员函数begin()和end()。除了用于构造函数外，还可以将initializer_list用于常规函数的参数：
+头文件`<initializer_list>`提供了对模板类initializer_list的支持，这个类包含成员函数begin()和end()。除了用于构造函数外，还可以将initializer_list用于常规函数的参数：
 
 ```cpp
 #include <iostream>
@@ -313,7 +313,7 @@ int main()
 
 传统方法用sprintf()和snprintf()函数把数值转换为char*字符串；用atoi()、atol()、atof()把char*字符串转换为数值。
 
-使用to_string()函数可以将各种数值类型转换为string字符串类型，这是一个重载函数，在头文件 <string>中声明，函数原型如下：
+使用to_string()函数可以将各种数值类型转换为string字符串类型，这是一个重载函数，在头文件`<string>`中声明，函数原型如下：
 
 ```cpp
 string to_string (int val);
@@ -1388,7 +1388,7 @@ int main()
     std::cout << std::put_time(tm_now, "%H:%M:%S") << std::endl;
     std::cout << std::put_time(tm_now, "%Y%m%d%H%M%S") << std::endl;
 
-    stringstream ss;   // 创建stringstream对象ss，需要包含<sstream>头文件。
+    stringstream ss;   // 创建stringstream对象ss，需要包含`<sstream>`头文件。
     ss << std::put_time(tm_now, "%Y-%m-%d %H:%M:%S");    // 把时间输出到对象ss中。
     string timestr = ss.str();     // 把ss转换成string的对象。
     cout << timestr << endl;
@@ -1605,15 +1605,15 @@ int main()
 
 fuction可以统一保存各种可调用对象。
 
-std::function模板类是一个通用的可调用对象的包装器，用简单的、统一的方式处理可调用对象。
+`std::function`模板类是一个通用的可调用对象的包装器，用简单的、统一的方式处理可调用对象。
 
-template<class _Fty>
+`template<class _Fty>`
 
-class function……
+`class function...`
 
 _Fty是可调用对象的类型，格式：返回类型(参数列表)。
 
-包含头文件：#include <functional>
+包含头文件：`#include <functional>`
 
 比如说：`std::function<int(int, int)> f;` 表示f 可以保存任何“接收两个 int，返回 int”的可调用对象。
 
@@ -1621,7 +1621,7 @@ _Fty是可调用对象的类型，格式：返回类型(参数列表)。
 
  重载了bool运算符，用于判断是否包装了可调用对象。
 
- 如果std::function对象未包装可调用对象，使用std::function对象将抛出std::bad_function_call异常。
+ 如果`std::function`对象未包装可调用对象，使用`std::function`对象将抛出`std::bad_function_call`异常。
 
 ```cpp
 #include <iostream>
@@ -1721,7 +1721,7 @@ std::bind()模板函数是一个通用的函数适配器（绑定器），它用
 
 bind返回的是fuction模版类的对象。
 
-包含头文件：#include <functional>
+包含头文件：`#include <functional>`
 
 函数原型：
 
@@ -2163,6 +2163,4 @@ int main()
 	}
 }
 ```
-
-
 
