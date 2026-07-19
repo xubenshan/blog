@@ -78,42 +78,43 @@ cookie_test第一个实参是`_pool_alloc<double>()`，(加括号是表示创建
 
 测试的代码如所示：
 
-	#include <iostream>
-	#include <vector> 
-	#include <ext\pool_allocator.h>
-	
-	using namespace std;
-	
-	template<typename Alloc> 
-	void cookie_test(Alloc alloc, size_t n)                                                                                
-	{
-	    typename Alloc::value_type *p1, *p2, *p3;		//需有 typename 
-	  	p1 = alloc.allocate(n); 		//allocate() and deallocate() 是 non-static, 需以 object 呼叫之. 
-	  	p2 = alloc.allocate(n);   	
-	  	p3 = alloc.allocate(n);  
-	
-	  	cout << "p1= " << p1 << '\t' << "p2= " << p2 << '\t' << "p3= " << p3 << '\n';
-		  	
-	  	alloc.deallocate(p1,sizeof(typename Alloc::value_type)); 	//需有 typename 
-	  	alloc.deallocate(p2,sizeof(typename Alloc::value_type));  	//有些 allocator 對於 2nd argument 的值無所謂  	
-	  	alloc.deallocate(p3,sizeof(typename Alloc::value_type)); 	
-	}
-	
-	int main(void)
-	{
-		cout << sizeof(__gnu_cxx::__pool_alloc<double>) << endl;
-		vector<int, __gnu_cxx::__pool_alloc<double> > vecPool;
-		cookie_test(__gnu_cxx::__pool_alloc<double>(), 1);
-		
-		cout << "----------------------" << endl;
-		
-		cout << sizeof(std::allocator<double>) << endl;
-		vector<int, std::allocator<double> > vecPool2;
-		cookie_test(std::allocator<double>(), 1);
-		
-		return 0;
-	}
+```cpp
+#include <iostream>
+#include <vector> 
+#include <ext\pool_allocator.h>
 
+using namespace std;
+
+template<typename Alloc> 
+void cookie_test(Alloc alloc, size_t n)                                                                                
+{
+    typename Alloc::value_type *p1, *p2, *p3;		//需有 typename 
+  	p1 = alloc.allocate(n); 		//allocate() and deallocate() 是 non-static, 需以 object 呼叫之. 
+  	p2 = alloc.allocate(n);   	
+  	p3 = alloc.allocate(n);  
+
+  	cout << "p1= " << p1 << '\t' << "p2= " << p2 << '\t' << "p3= " << p3 << '\n';
+	  	
+  	alloc.deallocate(p1,sizeof(typename Alloc::value_type)); 	//需有 typename 
+  	alloc.deallocate(p2,sizeof(typename Alloc::value_type));  	//有些 allocator 對於 2nd argument 的值無所謂  	
+  	alloc.deallocate(p3,sizeof(typename Alloc::value_type)); 	
+}
+
+int main(void)
+{
+	cout << sizeof(__gnu_cxx::__pool_alloc<double>) << endl;
+	vector<int, __gnu_cxx::__pool_alloc<double> > vecPool;
+	cookie_test(__gnu_cxx::__pool_alloc<double>(), 1);
+	
+	cout << "----------------------" << endl;
+	
+	cout << sizeof(std::allocator<double>) << endl;
+	vector<int, std::allocator<double> > vecPool2;
+	cookie_test(std::allocator<double>(), 1);
+	
+	return 0;
+}
+```
 测试环境是Dev C++5.1.1版本，GCC 4.9，测试结果如下：
 
 ![](https://i.imgur.com/n7pUFXm.png)
@@ -193,61 +194,68 @@ roundup是追加量，pool指的是战备池大小。
 
 首先看allocate函数，在函数的一开始便定义了:
 
-	obj* volatile *my_free_list;
-
+```cpp
+obj* volatile *my_free_list;
+```
 结合上图右侧的链表图和上上一张图片内容，my_free_list指向的是free_list中16个元素中的任何一个，*my_free_list则取出free_list某元素中的值，该值是个地址，指向一条分配内存的链表。所以my_free_list要定义为二级指针。
 
 result则保存分配给用户的一块内存的地址。
 
 首先：
 
-    if (n > (size_t)__MAX_BYTES) {
-        return(malloc_alloc::allocate(n));
-    }
-
+```cpp
+if (n > (size_t)__MAX_BYTES) {
+    return(malloc_alloc::allocate(n));
+}
+```
 检查用户申请内存块大小，如果大于__MAX_BYTES（128）那么将调用malloc_alloc::allocate()，这便是第一级分配器，这在后面分析。现在假设用户申请内存小于128字节，那么将根据用户申请内存大小分配对应的内存，由于内存池使用free_list链表管理的，每个free_list链表元素管理不同的内存块大小，这在前面介绍过了。于是有：
 
-	my_free_list = free_list + FREELIST_INDEX(n);//free_list指向#0，存储#0的地址。
-	//这里的加法相当于&free_list[FREELIST_INDEX(n)]。
-
+```cpp
+my_free_list = free_list + FREELIST_INDEX(n);//free_list指向#0，存储#0的地址。
+//这里的加法相当于&free_list[FREELIST_INDEX(n)]。
+```
 定位到该内存块的位置，这时my_free_list指向的是管理该内存块的空间的地址，使用*my_free_list便可以取到该内存块的地址：
 
-	result = *my_free_list;
-
+```cpp
+result = *my_free_list;
+```
 然后判断result是否为空：
 
-    if (result == 0) {
-        void* r = refill(ROUND_UP(n));
-        return r;
-    }
-
+```cpp
+if (result == 0) {
+    void* r = refill(ROUND_UP(n));
+    return r;
+}
+```
 如果为空，说明系统内存不够用了，将使用refill()函数分配内存，这部分在后面会介绍。
 
 如果情况正常，那么将该链表中下一个可以使用的空间设置为当前分配给用户空间指向的下一个、在逻辑上连续的空间，最后将result返回给用户：
 
-    *my_free_list = result->free_list_link;
-    return (result);
-
+```cpp
+*my_free_list = result->free_list_link;
+return (result);
+```
 下面的这张图很形象地演示了内存分配的过程：
 
 ![](https://i.imgur.com/zXMf35J.png)
 
 接下来分析释放内存。
 
-	  static void deallocate(void *p, size_t n)  //p may not be 0
-	  {
-	    obj* q = (obj*)p;
-	    obj* volatile *my_free_list;   //obj** my_free_list;
-	
-	    if (n > (size_t) __MAX_BYTES) {
-	        malloc_alloc::deallocate(p, n);
-	        return;
-	    }
-	    my_free_list = free_list + FREELIST_INDEX(n);
-	    q->free_list_link = *my_free_list;
-	    *my_free_list = q;
-	  }
+```cpp
+  static void deallocate(void *p, size_t n)  //p may not be 0
+  {
+    obj* q = (obj*)p;
+    obj* volatile *my_free_list;   //obj** my_free_list;
 
+    if (n > (size_t) __MAX_BYTES) {
+        malloc_alloc::deallocate(p, n);
+        return;
+    }
+    my_free_list = free_list + FREELIST_INDEX(n);
+    q->free_list_link = *my_free_list;
+    *my_free_list = q;
+  }
+```
 释放内存的代码也不难理解，找到需要释放内存的那块空间的地址，然后将当前可分配给用户的空间地址设置为需要释放的该内存空间，一开始指向的可分配的内存空间地址赋值给需要释放空间地址的逻辑连续的下一个内存地址。感觉十分拗口，图和代码更能体现这一过程：
 
 ![](https://i.imgur.com/ubYKWxM.png)
@@ -281,85 +289,91 @@ result = (obj*)chunk; //第一块直接给用户。
 
 该函数声明如下：
 
-	template <bool threads, int inst>
-	char*
-	__default_alloc_template<threads, inst>::
-	chunk_alloc(size_t size, int& nobjs)
-
+```cpp
+template <bool threads, int inst>
+char*
+__default_alloc_template<threads, inst>::
+chunk_alloc(size_t size, int& nobjs)
+```
 函数一开始计算了一些需要的值：
 
-	char* result;
-	size_t total_bytes = size * nobjs;
-	size_t bytes_left = end_free - start_free;
-
+```cpp
+char* result;
+size_t total_bytes = size * nobjs;
+size_t bytes_left = end_free - start_free;
+```
 result指向分配给用户的内存，total_bytes为需要分配的内存块的大小，bytes_left则是当前内存池中剩余的空间大小。
 
 然后：
 
-	if (bytes_left >= total_bytes) {
-	  result = start_free;
-	  start_free += total_bytes;
-	  return(result);
-	}
-
+```cpp
+if (bytes_left >= total_bytes) {
+  result = start_free;
+  start_free += total_bytes;
+  return(result);
+}
+```
 判断如果内存池剩余的内存大小多余需要分配的内存块大小，那么将内存池的首地址start_free直接赋值给result，然后将start_free指针下移total_bytes距离，将当下的result~start_free之间的空间返回给用户。
 
 当然，如果bytes_left比total_bytes小，但是却比size大：
 
-	else if (bytes_left >= size) {
-	      nobjs = bytes_left / size;
-	      total_bytes = size * nobjs;
-	      result = start_free;
-	      start_free += total_bytes;
-	      return(result);
-	  }
-
+```cpp
+else if (bytes_left >= size) {
+      nobjs = bytes_left / size;
+      total_bytes = size * nobjs;
+      result = start_free;
+      start_free += total_bytes;
+      return(result);
+  }
+```
 这意味着不能直接分配size * nobjs大小内存给用户，那么可以先看看内存池当下的空间能分配多少个size大小的块给用户，然后将该块分配给用户，start_free指针移动total_bytes长度。
 
 
-	  size_t bytes_to_get =
-	             2 * total_bytes + ROUND_UP(heap_size >> 4);
-	  // Try to make use of the left-over piece.
-	  if (bytes_left > 0) {
-	      obj* volatile *my_free_list =
-	             free_list + FREELIST_INDEX(bytes_left);
-	
-	      ((obj*)start_free)->free_list_link = *my_free_list;
-	      *my_free_list = (obj*)start_free;
-	  }
+```cpp
+  size_t bytes_to_get =
+             2 * total_bytes + ROUND_UP(heap_size >> 4);
+  // Try to make use of the left-over piece.
+  if (bytes_left > 0) {
+      obj* volatile *my_free_list =
+             free_list + FREELIST_INDEX(bytes_left);
 
+      ((obj*)start_free)->free_list_link = *my_free_list;
+      *my_free_list = (obj*)start_free;
+  }
+```
 这部分查看内存池里面还有没有多余的内存，如果有，就充分利用。然后就是不断地获取内存块，将这些内存块不断切割用链表连接起来，递归这些过程：
 
-      start_free = (char*)malloc(bytes_to_get);
-      if (0 == start_free) {
-          int i;
-          obj* volatile *my_free_list, *p;
-    
-          //Try to make do with what we have. That can't
-          //hurt. We do not try smaller requests, since that tends
-          //to result in disaster on multi-process machines.
-          for (i = size; i <= __MAX_BYTES; i += __ALIGN) {
-              my_free_list = free_list + FREELIST_INDEX(i);
-              p = *my_free_list;
-              if (0 != p) {
-                  *my_free_list = p -> free_list_link;
-                  start_free = (char*)p;
-                  end_free = start_free + i;
-                  return(chunk_alloc(size, nobjs));
-                  //Any leftover piece will eventually make it to the
-                  //right free list.
-              }
-          }
-          end_free = 0;       //In case of exception.
-          start_free = (char*)malloc_alloc::allocate(bytes_to_get);
-          //This should either throw an exception or
-          //remedy the situation. Thus we assume it
-          //succeeded.
-      }
-      heap_size += bytes_to_get;
-      end_free = start_free + bytes_to_get;
-      return(chunk_alloc(size, nobjs));
+```cpp
+  start_free = (char*)malloc(bytes_to_get);
+  if (0 == start_free) {
+      int i;
+      obj* volatile *my_free_list, *p;
 
+      //Try to make do with what we have. That can't
+      //hurt. We do not try smaller requests, since that tends
+      //to result in disaster on multi-process machines.
+      for (i = size; i <= __MAX_BYTES; i += __ALIGN) {
+          my_free_list = free_list + FREELIST_INDEX(i);
+          p = *my_free_list;
+          if (0 != p) {
+              *my_free_list = p -> free_list_link;
+              start_free = (char*)p;
+              end_free = start_free + i;
+              return(chunk_alloc(size, nobjs));
+              //Any leftover piece will eventually make it to the
+              //right free list.
+          }
+      }
+      end_free = 0;       //In case of exception.
+      start_free = (char*)malloc_alloc::allocate(bytes_to_get);
+      //This should either throw an exception or
+      //remedy the situation. Thus we assume it
+      //succeeded.
+  }
+  heap_size += bytes_to_get;
+  end_free = start_free + bytes_to_get;
+  return(chunk_alloc(size, nobjs));
+```
 ![](https://i.imgur.com/t4Gz1D7.png)
 
 接下来看alloc观念大整理：先来看第一种没有new的，Foo(1)会在栈上创建一个临时对象，把对象push_back进去。list容器会向分配器要内存，这块内存大小包含Foo大小，还需要两根指针。这是list维护容器所需要的。内存分配好后，会把Foo(1)拷贝到该内存。然后Foo(1)临时对象就消失了。
@@ -396,107 +410,117 @@ countNew是malloc要的内存总量。timesNew是调用malloc的次数，每调�
 
 上面说到，不论是分配内存还是释放内存，则有：
 
-    if (n > (size_t)__MAX_BYTES) {
-        return(malloc_alloc::allocate(n));
-    }
-
+```cpp
+if (n > (size_t)__MAX_BYTES) {
+    return(malloc_alloc::allocate(n));
+}
+```
 和：
 
-    if (n > (size_t) __MAX_BYTES) {
-        malloc_alloc::deallocate(p, n);
-        return;
-    }
-
+```cpp
+if (n > (size_t) __MAX_BYTES) {
+    malloc_alloc::deallocate(p, n);
+    return;
+}
+```
 也就是将内存分配与释放操作放到第一级allocator中：
 
 ![](https://i.imgur.com/Mf5qVqE.png)
 
 从上图中可以看到，第一级分配器叫做：
 
-	class __malloc_alloc_template
-
+```cpp
+class __malloc_alloc_template
+```
 其实有：
 
-	typedef __malloc_alloc_template<0>  malloc_alloc;
-
+```cpp
+typedef __malloc_alloc_template<0>  malloc_alloc;
+```
 这在后面会介绍。
 
 分配器的allocate函数如下：
 
-	  static void* allocate(size_t n)
-	  {
-	    void *result = malloc(n);   //直接使用 malloc()
-	    if (0 == result) result = oom_malloc(n);
-	    return result;
-	  }
-
+```cpp
+  static void* allocate(size_t n)
+  {
+    void *result = malloc(n);   //直接使用 malloc()
+    if (0 == result) result = oom_malloc(n);
+    return result;
+  }
+```
 直接调用malloc函数分配内存，如果分配失败则调用oom_malloc函数。
 
 同样地，reallocate也是如此：
 
-	  static void* reallocate(void *p, size_t /* old_sz */, size_t new_sz)
-	  {
-	    void * result = realloc(p, new_sz); //直接使用 realloc()
-	    if (0 == result) result = oom_realloc(p, new_sz);
-	    return result;
-	  }
-
+```cpp
+  static void* reallocate(void *p, size_t /* old_sz */, size_t new_sz)
+  {
+    void * result = realloc(p, new_sz); //直接使用 realloc()
+    if (0 == result) result = oom_realloc(p, new_sz);
+    return result;
+  }
+```
 如果重新要求内存失败，则调用oom_realloc函数，这两个函数在后续会介绍。
 
 deallocate操作则直接释放内存：
 
-	static void deallocate(void *p, size_t /* n */)
-	{
-		free(p);                    //直接使用 free()
-	}
-
+```cpp
+static void deallocate(void *p, size_t /* n */)
+{
+	free(p);                    //直接使用 free()
+}
+```
 set_malloc_handler是个函数指针，里面传入一个void (*f)()类型函数：
 
-	  static void (*set_malloc_handler(void (*f)()))()
-	  { //類似 C++ 的 set_new_handler().
-	    void (*old)() = __malloc_alloc_oom_handler;
-	    __malloc_alloc_oom_handler = f;
-	    return(old);
-	  }
-
+```cpp
+  static void (*set_malloc_handler(void (*f)()))()
+  { //類似 C++ 的 set_new_handler().
+    void (*old)() = __malloc_alloc_oom_handler;
+    __malloc_alloc_oom_handler = f;
+    return(old);
+  }
+```
 该函数设置的是内存分配不够情况下的错误处理函数，这个需要交给用户来管理，首先保存先前的处理函数，然后再将新的处理函数f赋值给__malloc_alloc_oom_handler，然后返回旧的错误处理函数，这也在下一张图片中会介绍：
 
 ![](https://i.imgur.com/tWjkErU.png)
 
 可以看到oom_malloc函数内部做的事：
 
-	template <int inst>
-	void* __malloc_alloc_template<inst>::oom_malloc(size_t n)
-	{
-	  void (*my_malloc_handler)();
-	  void* result;
-	
-	  for (;;) {    //不斷嘗試釋放、配置、再釋放、再配置…
-	    my_malloc_handler = __malloc_alloc_oom_handler;
-	    if (0 == my_malloc_handler) { __THROW_BAD_ALLOC; }
-	    (*my_malloc_handler)();    //呼叫處理常式，企圖釋放記憶體
-	    result = malloc(n);        //再次嘗試配置記憶體
-	    if (result) return(result);
-	  }
-	}
+```cpp
+template <int inst>
+void* __malloc_alloc_template<inst>::oom_malloc(size_t n)
+{
+  void (*my_malloc_handler)();
+  void* result;
 
+  for (;;) {    //不斷嘗試釋放、配置、再釋放、再配置…
+    my_malloc_handler = __malloc_alloc_oom_handler;
+    if (0 == my_malloc_handler) { __THROW_BAD_ALLOC; }
+    (*my_malloc_handler)();    //呼叫處理常式，企圖釋放記憶體
+    result = malloc(n);        //再次嘗試配置記憶體
+    if (result) return(result);
+  }
+}
+```
 该函数不断调用__malloc_alloc_oom_handler和malloc函数，直到内存分配成功才返回。oom_realloc也是如此：
 
-	template <int inst>
-	void * __malloc_alloc_template<inst>::oom_realloc(void *p, size_t n)
-	{
-	  void (*my_malloc_handler)();
-	  void* result;
-	
-	  for (;;) {    //不斷嘗試釋放、配置、再釋放、再配置…
-	    my_malloc_handler = __malloc_alloc_oom_handler;
-	    if (0 == my_malloc_handler) { __THROW_BAD_ALLOC; }
-	    (*my_malloc_handler)();    //呼叫處理常式，企圖釋放記憶體。
-	    result = realloc(p, n);    //再次嘗試配置記憶體。
-	    if (result) return(result);
-	  }
-	}
+```cpp
+template <int inst>
+void * __malloc_alloc_template<inst>::oom_realloc(void *p, size_t n)
+{
+  void (*my_malloc_handler)();
+  void* result;
 
+  for (;;) {    //不斷嘗試釋放、配置、再釋放、再配置…
+    my_malloc_handler = __malloc_alloc_oom_handler;
+    if (0 == my_malloc_handler) { __THROW_BAD_ALLOC; }
+    (*my_malloc_handler)();    //呼叫處理常式，企圖釋放記憶體。
+    result = realloc(p, n);    //再次嘗試配置記憶體。
+    if (result) return(result);
+  }
+}
+```
 ![](https://i.imgur.com/hK3r07F.png)
 
 到这里，分配器只剩下refill函数没有分析了，下面将重点讨论该函数。不过在讨论refill函数之前有必要分析chunk_alloc函数：

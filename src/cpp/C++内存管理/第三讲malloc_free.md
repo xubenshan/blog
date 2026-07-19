@@ -54,19 +54,19 @@ cookie的内容是131h，这个在之前我们说过原因了，虽然块大小�
 >
 > VC6 SBH 以 **16 字节**作为一个最小尺寸单位，源码称为一个 `paragraph`：
 >
-> ```
+> ```cpp
 > #define BYTES_PER_PARA 16
 > ```
 >
 > SBH 能处理的最大用户数据尺寸是：
 >
-> ```
+> ```cpp
 > #define MAX_ALLOC_DATA_SIZE 0x3f8  // 1016 字节
 > ```
 >
 > 每个 block 还需要前、后两个 4 字节大小 cookie，共 8 字节：
 >
-> ```
+> ```cpp
 > #define MAX_ALLOC_ENTRY_SIZE \
 >     (MAX_ALLOC_DATA_SIZE + 0x8)
 > ```
@@ -235,19 +235,19 @@ SBH 下 cookie             0x004
 
 应用程序调用：
 
-```
+```cpp
 free(pUserData);
 ```
 
 首先由 Debug Heap 根据 `pUserData` 向前找到：
 
-```
+```cpp
 pHead = pHdr(pUserData);
 ```
 
 检查 Debug Header 和前后 `0xFD` 保护区后，再把 `pHead` 交给基础堆。SBH 收到 `pHead` 后，才继续向前减 4 字节寻找自己的上 cookie：
 
-```
+```cpp
 pEntry = (char *)pHead - sizeof(int);
 ```
 

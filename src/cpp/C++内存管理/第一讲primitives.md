@@ -30,66 +30,67 @@ category:
 
 通过malloc和new分配内存、通过free和delete释放内存是十分常用的，通过::operator new操作内存比较少见，allocator分配器操作内存在STL源码中使用较多，对于不同的编译环境使用也有所不同。下面这个例子是基与VS2013环境做测试的:
 
-	#include <iostream>
-	#include <complex>
-	#include <memory>				 //std::allocator  
-	//#include <ext\pool_allocator.h>	 //GCC使用，欲使用 std::allocator 以外的 allocator, 就得自行 #include <ext/...> 
-	using namespace std;
-	namespace jj01
+```cpp
+#include <iostream>
+#include <complex>
+#include <memory>				 //std::allocator  
+//#include <ext\pool_allocator.h>	 //GCC使用，欲使用 std::allocator 以外的 allocator, 就得自行 #include <ext/...> 
+using namespace std;
+namespace jj01
+{
+	void test_primitives()
 	{
-		void test_primitives()
-		{
-			cout << "\ntest_primitives().......... \n";
-	
-			void* p1 = malloc(512);	//512 bytes
-			free(p1);
-	
-			complex<int>* p2 = new complex<int>; //one object
-			delete p2;
-	
-			void* p3 = ::operator new(512); //512 bytes
-			::operator delete(p3);
-	
-			//以下使用 C++ 標準庫提供的 allocators。
-			//其接口雖有標準規格，但實現廠商並未完全遵守；下面三者形式略異。
-	#ifdef _MSC_VER
-			//以下兩函數都是 non-static，定要通過 object 調用。以下分配 3 個 ints.
-			int* p4 = allocator<int>().allocate(3, (int*)0);
-			p4[0] = 666;
-			p4[1] = 999;
-			p4[2] = 888;
-			cout << "p4[0] = " << p4[0] << endl;
-			cout << "p4[1] = " << p4[1] << endl;
-			cout << "p4[2] = " << p4[2] << endl;
-			allocator<int>().deallocate(p4, 3);
-	#endif
-	#ifdef __BORLANDC__
-			//以下兩函數都是 non-static，定要通過 object 調用。以下分配 5 個 ints.
-			int* p4 = allocator<int>().allocate(5);
-			allocator<int>().deallocate(p4, 5);
-	#endif
-	#ifdef __GNUC__
-			//以下兩函數都是 static，可通過全名調用之。以下分配 512 bytes.
-			//void* p4 = alloc::allocate(512); 
-			//alloc::deallocate(p4,512);   
-	
-			//以下兩函數都是 non-static，定要通過 object 調用。以下分配 7 個 ints.    
-			void* p4 = allocator<int>().allocate(7);
-			allocator<int>().deallocate((int*)p4, 7);
-	
-			//以下兩函數都是 non-static，定要通過 object 調用。以下分配 9 個 ints.	
-			void* p5 = __gnu_cxx::__pool_alloc<int>().allocate(9);
-			__gnu_cxx::__pool_alloc<int>().deallocate((int*)p5, 9);
-	#endif
-		}
-	} //namespace
-	
-	int main(void)
-	{
-		jj01::test_primitives();
-		return 0;
-	}
+		cout << "\ntest_primitives().......... \n";
 
+		void* p1 = malloc(512);	//512 bytes
+		free(p1);
+
+		complex<int>* p2 = new complex<int>; //one object
+		delete p2;
+
+		void* p3 = ::operator new(512); //512 bytes
+		::operator delete(p3);
+
+		//以下使用 C++ 標準庫提供的 allocators。
+		//其接口雖有標準規格，但實現廠商並未完全遵守；下面三者形式略異。
+#ifdef _MSC_VER
+		//以下兩函數都是 non-static，定要通過 object 調用。以下分配 3 個 ints.
+		int* p4 = allocator<int>().allocate(3, (int*)0);
+		p4[0] = 666;
+		p4[1] = 999;
+		p4[2] = 888;
+		cout << "p4[0] = " << p4[0] << endl;
+		cout << "p4[1] = " << p4[1] << endl;
+		cout << "p4[2] = " << p4[2] << endl;
+		allocator<int>().deallocate(p4, 3);
+#endif
+#ifdef __BORLANDC__
+		//以下兩函數都是 non-static，定要通過 object 調用。以下分配 5 個 ints.
+		int* p4 = allocator<int>().allocate(5);
+		allocator<int>().deallocate(p4, 5);
+#endif
+#ifdef __GNUC__
+		//以下兩函數都是 static，可通過全名調用之。以下分配 512 bytes.
+		//void* p4 = alloc::allocate(512); 
+		//alloc::deallocate(p4,512);   
+
+		//以下兩函數都是 non-static，定要通過 object 調用。以下分配 7 個 ints.    
+		void* p4 = allocator<int>().allocate(7);
+		allocator<int>().deallocate((int*)p4, 7);
+
+		//以下兩函數都是 non-static，定要通過 object 調用。以下分配 9 個 ints.	
+		void* p5 = __gnu_cxx::__pool_alloc<int>().allocate(9);
+		__gnu_cxx::__pool_alloc<int>().deallocate((int*)p5, 9);
+#endif
+	}
+} //namespace
+
+int main(void)
+{
+	jj01::test_primitives();
+	return 0;
+}
+```
 编译运行结果如下：
 
 ![](https://i.imgur.com/wFWZoad.png)
@@ -123,80 +124,81 @@ new做两个动作：分配一块内存 分配好后调用构造函数
 #### 3、模拟编译器直接调用构造和析构函数 ####
 下面的代码测试环节为VS2013：
 
-	#include <iostream>
-	#include <string>
-	//#include <memory>				 //std::allocator  
-	using namespace std;
-	
-	namespace jj02
+```cpp
+#include <iostream>
+#include <string>
+//#include <memory>				 //std::allocator  
+using namespace std;
+
+namespace jj02
+{
+
+	class A
 	{
-	
-		class A
-		{
-		public:
-			int id;
-	
-			A() : id(0)      { cout << "default ctor. this=" << this << " id=" << id << endl; }
-			A(int i) : id(i) { cout << "ctor. this=" << this << " id=" << id << endl; }
-			~A()             { cout << "dtor. this=" << this << " id=" << id << endl; }
-		};
-	
-		void test_call_ctor_directly()
-		{
-			cout << "\ntest_call_ctor_directly().......... \n";
-	
-			string* pstr = new string;
-			cout << "str= " << *pstr << endl;
-			//! pstr->string::string("jjhou");  
-			//[Error] 'class std::basic_string<char>' has no member named 'string'
-			//! pstr->~string();	//crash -- 其語法語意都是正確的, crash 只因為上一行被 remark 起來嘛.  
-			cout << "str= " << *pstr << endl;
+	public:
+		int id;
 
+		A() : id(0)      { cout << "default ctor. this=" << this << " id=" << id << endl; }
+		A(int i) : id(i) { cout << "ctor. this=" << this << " id=" << id << endl; }
+		~A()             { cout << "dtor. this=" << this << " id=" << id << endl; }
+	};
 
-​			//------------
-​	
-
-			A* pA = new A(1);         	//ctor. this=000307A8 id=1
-			cout << pA->id << endl;   	//1
-			pA->A::A(3); // 因为前面已经new过了 所以pA指向了一个存在的对象，此时再调用构造函数的意思是试图在同一个对象上再次调用构造函数，让它重新构造成：id = 3.
-			cout << pA->id << endl;
-			//!	pA->A::A(3);                //in VC6 : ctor. this=000307A8 id=3
-			//in GCC : [Error] cannot call constructor 'jj02::A::A' directly
-	
-			A::A(5); // 直接调用构造函数
-			//!	A::A(5);	  				//in VC6 : ctor. this=0013FF60 id=5
-			//         dtor. this=0013FF60  	
-			//in GCC : [Error] cannot call constructor 'jj02::A::A' directly
-			//         [Note] for a function-style cast, remove the redundant '::A'
-	
-			cout << pA->id << endl;   	//in VC6 : 3
-			//in GCC : 1  	
-	
-			delete pA;                	//dtor. this=000307A8 
-	
-			//simulate new
-			void* p = ::operator new(sizeof(A));
-			cout << "p=" << p << endl; 	//p=000307A8
-			pA = static_cast<A*>(p);
-			pA->A::A(2);
-			//!	pA->A::A(2);				//in VC6 : ctor. this=000307A8 id=2
-			//in GCC : [Error] cannot call constructor 'jj02::A::A' directly  	
-	
-			cout << pA->id << endl;     //in VC6 : 2
-			//in GCC : 0  	
-	
-			//simulate delete
-			pA->~A();					//dtor. this=000307A8 
-			::operator delete(pA);		//free()
-		}
-	} //namespace
-	
-	int main(void)
+	void test_call_ctor_directly()
 	{
-		jj02::test_call_ctor_directly();
-		return 0;
+		cout << "\ntest_call_ctor_directly().......... \n";
+
+		string* pstr = new string;
+		cout << "str= " << *pstr << endl;
+		//! pstr->string::string("jjhou");  
+		//[Error] 'class std::basic_string<char>' has no member named 'string'
+		//! pstr->~string();	//crash -- 其語法語意都是正確的, crash 只因為上一行被 remark 起來嘛.  
+		cout << "str= " << *pstr << endl;
+
+
+		//------------
+
+
+		A* pA = new A(1);         	//ctor. this=000307A8 id=1
+		cout << pA->id << endl;   	//1
+		pA->A::A(3); // 因为前面已经new过了 所以pA指向了一个存在的对象，此时再调用构造函数的意思是试图在同一个对象上再次调用构造函数，让它重新构造成：id = 3.
+		cout << pA->id << endl;
+		//!	pA->A::A(3);                //in VC6 : ctor. this=000307A8 id=3
+		//in GCC : [Error] cannot call constructor 'jj02::A::A' directly
+
+		A::A(5); // 直接调用构造函数
+		//!	A::A(5);	  				//in VC6 : ctor. this=0013FF60 id=5
+		//         dtor. this=0013FF60  	
+		//in GCC : [Error] cannot call constructor 'jj02::A::A' directly
+		//         [Note] for a function-style cast, remove the redundant '::A'
+
+		cout << pA->id << endl;   	//in VC6 : 3
+		//in GCC : 1  	
+
+		delete pA;                	//dtor. this=000307A8 
+
+		//simulate new
+		void* p = ::operator new(sizeof(A));
+		cout << "p=" << p << endl; 	//p=000307A8
+		pA = static_cast<A*>(p);
+		pA->A::A(2);
+		//!	pA->A::A(2);				//in VC6 : ctor. this=000307A8 id=2
+		//in GCC : [Error] cannot call constructor 'jj02::A::A' directly  	
+
+		cout << pA->id << endl;     //in VC6 : 2
+		//in GCC : 0  	
+
+		//simulate delete
+		pA->~A();					//dtor. this=000307A8 
+		::operator delete(pA);		//free()
 	}
+} //namespace
 
+int main(void)
+{
+	jj02::test_call_ctor_directly();
+	return 0;
+}
+```
 编译运行结果如下：
 
 ![](https://i.imgur.com/pFUmLy0.png)
@@ -236,90 +238,91 @@ VS下可以直接通过内存空间调用构造函数，但侯杰测试在GNU C�
 
 > 必须有一个默认构造函数，因为new A[size]，没办法给每个对象赋初始值  ，只能调用默认的构造函数。                                                                                                    构造的时候从小地址往大地址；析构的时候是从大地址往小地址。
 
-	#include <iostream>
-	#include <new>		//placement new
-	using namespace std;
-	
-	namespace jj03
-	{
-	
-		class A
-		{
-		public:
-			int id;
-	
-			A() : id(0)      { cout << "default ctor. this=" << this << " id=" << id << endl; }
-			A(int i) : id(i) { cout << "ctor. this=" << this << " id=" << id << endl; }
-			~A()             { cout << "dtor. this=" << this << " id=" << id << endl; }
-		};
-	
-		void test_array_new_and_placement_new()
-		{
-			cout << "\ntest_placement_new().......... \n";
-	
-			size_t size = 3;
-	
-			{
-				//case 1
-				//模擬 memory pool 的作法, array new + placement new. 崩潰 
-	
-				A* buf = (A*)(new char[sizeof(A)*size]);
-				A* tmp = buf;
-	
-				cout << "buf=" << buf << "  tmp=" << tmp << endl;
-	
-				for (int i = 0; i < size; ++i)
-					new (tmp++) A(i);  			//3次 调用ctor 
-	
-				cout << "buf=" << buf << "  tmp=" << tmp << endl;
-	
-				//!	delete [] buf;    	//crash. why?
-				//因為這其實是個 char array，看到 delete [] buf; 編譯器會企圖喚起多次 A::~A. 
-				// 但 array memory layout 中找不到與 array 元素個數 (本例 3) 相關的信息, 
-				// -- 整個格局都錯亂 (從我對 VC 的認識而言)，於是崩潰。 
-				delete buf;     	//dtor just one time, ~[0]	
-	
-				cout << "\n\n";
-			}
-	
-			{
-				//case 2
-				//回頭測試單純的 array new
-	
-				A* buf = new A[size];  //default ctor 3 次. [0]先於[1]先於[2])
-				//A必須有 default ctor, 否則 [Error] no matching function for call to 'jj02::A::A()'
-				A* tmp = buf;
-	
-				cout << "buf=" << buf << "  tmp=" << tmp << endl;
-	
-				for (int i = 0; i < size; ++i)
-					new (tmp++) A(i);  		//3次 ctor 
-	
-				cout << "buf=" << buf << "  tmp=" << tmp << endl;
-	
-				delete[] buf;    //dtor three times (次序逆反, [2]先於[1]先於[0])	
-			}
-	
-			{
-				//case 3	
-				//掌握崩潰原因, 再次模擬 memory pool作法, array new + placement new. 	
-				//不, 不做了, 因為 memory pool 只是供應 memory, 它並不管 construction, 
-				//也不管 destruction. 它只負責回收 memory. 
-				//所以它是以 void* 或 char* 取得 memory, 釋放 (刪除)的也是 void* or char*.  
-				//不像本例 case 1 釋放 (刪除) 的是 A*. 
-				//
-				//事實上 memory pool 形式如 jj04::test 
-			}
-	
-		}
-	} //namespace
-	
-	int main(void)
-	{
-		jj03::test_array_new_and_placement_new();
-		return 0;
-	}
+```cpp
+#include <iostream>
+#include <new>		//placement new
+using namespace std;
 
+namespace jj03
+{
+
+	class A
+	{
+	public:
+		int id;
+
+		A() : id(0)      { cout << "default ctor. this=" << this << " id=" << id << endl; }
+		A(int i) : id(i) { cout << "ctor. this=" << this << " id=" << id << endl; }
+		~A()             { cout << "dtor. this=" << this << " id=" << id << endl; }
+	};
+
+	void test_array_new_and_placement_new()
+	{
+		cout << "\ntest_placement_new().......... \n";
+
+		size_t size = 3;
+
+		{
+			//case 1
+			//模擬 memory pool 的作法, array new + placement new. 崩潰 
+
+			A* buf = (A*)(new char[sizeof(A)*size]);
+			A* tmp = buf;
+
+			cout << "buf=" << buf << "  tmp=" << tmp << endl;
+
+			for (int i = 0; i < size; ++i)
+				new (tmp++) A(i);  			//3次 调用ctor 
+
+			cout << "buf=" << buf << "  tmp=" << tmp << endl;
+
+			//!	delete [] buf;    	//crash. why?
+			//因為這其實是個 char array，看到 delete [] buf; 編譯器會企圖喚起多次 A::~A. 
+			// 但 array memory layout 中找不到與 array 元素個數 (本例 3) 相關的信息, 
+			// -- 整個格局都錯亂 (從我對 VC 的認識而言)，於是崩潰。 
+			delete buf;     	//dtor just one time, ~[0]	
+
+			cout << "\n\n";
+		}
+
+		{
+			//case 2
+			//回頭測試單純的 array new
+
+			A* buf = new A[size];  //default ctor 3 次. [0]先於[1]先於[2])
+			//A必須有 default ctor, 否則 [Error] no matching function for call to 'jj02::A::A()'
+			A* tmp = buf;
+
+			cout << "buf=" << buf << "  tmp=" << tmp << endl;
+
+			for (int i = 0; i < size; ++i)
+				new (tmp++) A(i);  		//3次 ctor 
+
+			cout << "buf=" << buf << "  tmp=" << tmp << endl;
+
+			delete[] buf;    //dtor three times (次序逆反, [2]先於[1]先於[0])	
+		}
+
+		{
+			//case 3	
+			//掌握崩潰原因, 再次模擬 memory pool作法, array new + placement new. 	
+			//不, 不做了, 因為 memory pool 只是供應 memory, 它並不管 construction, 
+			//也不管 destruction. 它只負責回收 memory. 
+			//所以它是以 void* 或 char* 取得 memory, 釋放 (刪除)的也是 void* or char*.  
+			//不像本例 case 1 釋放 (刪除) 的是 A*. 
+			//
+			//事實上 memory pool 形式如 jj04::test 
+		}
+
+	}
+} //namespace
+
+int main(void)
+{
+	jj03::test_array_new_and_placement_new();
+	return 0;
+}
+```
 编译运行结果如下：
 
 ![](https://i.imgur.com/kcoXFR6.png)
@@ -362,13 +365,13 @@ placement new：不用申请内存，只在已有内存上构造对象
 
 > 全局的operator new/delete可以重载，也可以在类中重载operator new/detete。
 
-> ```
+> ```cpp
 > Foo* p = new Foo(x); //申请一块内存，然后调用 Foo 类的构造函数，并把 x 作为构造参数。
 > ```
 >
 > 等价理解为：
 >
-> ```
+> ```cpp
 > Foo* p = (Foo*)operator new(sizeof(Foo));  // 1. 先申请一块能放 Foo 对象的内存
 > new (p) Foo(x);                            // 2. 在这块内存上调用 Foo(x) 构造函数
 > ```
@@ -429,219 +432,221 @@ placement new：不用申请内存，只在已有内存上构造对象
 
 测试一：
 
-	#include <cstddef>
-	#include <iostream>
-	#include <string>
-	using namespace std;
-	
-	namespace jj06
+```cpp
+#include <cstddef>
+#include <iostream>
+#include <string>
+using namespace std;
+
+namespace jj06
+{
+
+	class Foo
 	{
-	
-		class Foo
-		{
-		public:
-			int _id;
-			long _data;
-			string _str;
-	
-		public:
-			static void* operator new(size_t size);
-			static void  operator delete(void* deadObject, size_t size);
-			static void* operator new[](size_t size);
-			static void  operator delete[](void* deadObject, size_t size);
-	
-			Foo() : _id(0)      { cout << "default ctor. this=" << this << " id=" << _id << endl; }
-			Foo(int i) : _id(i) { cout << "ctor. this=" << this << " id=" << _id << endl; }
-			//virtual 
-			~Foo()              { cout << "dtor. this=" << this << " id=" << _id << endl; }
-	
-			//不加 virtual dtor, sizeof = 12, new Foo[5] => operator new[]() 的 size 參數是 64, 
-			//加了 virtual dtor, sizeof = 16, new Foo[5] => operator new[]() 的 size 參數是 84, 
-			//上述二例，多出來的 4 可能就是個 size_t 欄位用來放置 array size. 
-		};
-	
-		void* Foo::operator new(size_t size)
-		{
-			Foo* p = (Foo*)malloc(size);
-			cout << "Foo::operator new(), size=" << size << "\t  return: " << p << endl;
-	
-			return p;
-		}
-	
-		void Foo::operator delete(void* pdead, size_t size)
-		{
-			cout << "Foo::operator delete(), pdead= " << pdead << "  size= " << size << endl;
-			free(pdead);
-		}
-	
-		void* Foo::operator new[](size_t size)
-		{
-			Foo* p = (Foo*)malloc(size);  //crash, 問題可能出在這兒 
-			cout << "Foo::operator new[](), size=" << size << "\t  return: " << p << endl;
-	
-			return p;
-		}
-	
-		void Foo::operator delete[](void* pdead, size_t size)
-		{
-			cout << "Foo::operator delete[](), pdead= " << pdead << "  size= " << size << endl;
-	
-			free(pdead);
-		}
-	
-		//-------------	
-		void test_overload_operator_new_and_array_new()
-		{
-			cout << "\ntest_overload_operator_new_and_array_new().......... \n";
-	
-			cout << "sizeof(Foo)= " << sizeof(Foo) << endl;
-	
-			{
-				Foo* p = new Foo(7);
-				delete p;
-	
-				Foo* pArray = new Foo[5];	//無法給 array elements 以 initializer 
-				delete[] pArray;
-			}
-	
-			{
-				cout << "testing global expression ::new and ::new[] \n";
-				// 這會繞過 overloaded new(), delete(), new[](), delete[]() 
-				// 但當然 ctor, dtor 都會被正常呼叫.  
-	
-				Foo* p = ::new Foo(7);
-				::delete p;
-	
-				Foo* pArray = ::new Foo[5];
-				::delete[] pArray;
-			}
-		}
-	} //namespace
-	
-	int main(void)
+	public:
+		int _id;
+		long _data;
+		string _str;
+
+	public:
+		static void* operator new(size_t size);
+		static void  operator delete(void* deadObject, size_t size);
+		static void* operator new[](size_t size);
+		static void  operator delete[](void* deadObject, size_t size);
+
+		Foo() : _id(0)      { cout << "default ctor. this=" << this << " id=" << _id << endl; }
+		Foo(int i) : _id(i) { cout << "ctor. this=" << this << " id=" << _id << endl; }
+		//virtual 
+		~Foo()              { cout << "dtor. this=" << this << " id=" << _id << endl; }
+
+		//不加 virtual dtor, sizeof = 12, new Foo[5] => operator new[]() 的 size 參數是 64, 
+		//加了 virtual dtor, sizeof = 16, new Foo[5] => operator new[]() 的 size 參數是 84, 
+		//上述二例，多出來的 4 可能就是個 size_t 欄位用來放置 array size. 
+	};
+
+	void* Foo::operator new(size_t size)
 	{
-		jj06::test_overload_operator_new_and_array_new();
-		return 0;
+		Foo* p = (Foo*)malloc(size);
+		cout << "Foo::operator new(), size=" << size << "\t  return: " << p << endl;
+
+		return p;
 	}
 
+	void Foo::operator delete(void* pdead, size_t size)
+	{
+		cout << "Foo::operator delete(), pdead= " << pdead << "  size= " << size << endl;
+		free(pdead);
+	}
+
+	void* Foo::operator new[](size_t size)
+	{
+		Foo* p = (Foo*)malloc(size);  //crash, 問題可能出在這兒 
+		cout << "Foo::operator new[](), size=" << size << "\t  return: " << p << endl;
+
+		return p;
+	}
+
+	void Foo::operator delete[](void* pdead, size_t size)
+	{
+		cout << "Foo::operator delete[](), pdead= " << pdead << "  size= " << size << endl;
+
+		free(pdead);
+	}
+
+	//-------------	
+	void test_overload_operator_new_and_array_new()
+	{
+		cout << "\ntest_overload_operator_new_and_array_new().......... \n";
+
+		cout << "sizeof(Foo)= " << sizeof(Foo) << endl;
+
+		{
+			Foo* p = new Foo(7);
+			delete p;
+
+			Foo* pArray = new Foo[5];	//無法給 array elements 以 initializer 
+			delete[] pArray;
+		}
+
+		{
+			cout << "testing global expression ::new and ::new[] \n";
+			// 這會繞過 overloaded new(), delete(), new[](), delete[]() 
+			// 但當然 ctor, dtor 都會被正常呼叫.  
+
+			Foo* p = ::new Foo(7);
+			::delete p;
+
+			Foo* pArray = ::new Foo[5];
+			::delete[] pArray;
+		}
+	}
+} //namespace
+
+int main(void)
+{
+	jj06::test_overload_operator_new_and_array_new();
+	return 0;
+}
+```
 编译运行结果如下：
 
 ![](https://i.imgur.com/c6l7tRe.png)
 
 测试二：
 
-	#include <vector>  //for test
-	#include <cstddef>
-	#include <iostream>
-	#include <string>
-	using namespace std;
-	
-	namespace jj07
+```cpp
+#include <vector>  //for test
+#include <cstddef>
+#include <iostream>
+#include <string>
+using namespace std;
+
+namespace jj07
+{
+
+	class Bad { };
+	class Foo
 	{
-	
-		class Bad { };
-		class Foo
-		{
-		public:
-			Foo() { cout << "Foo::Foo()" << endl; }
-			Foo(int) {
-				cout << "Foo::Foo(int)" << endl;
-				// throw Bad();  
-			}
-	
-			//(1) 這個就是一般的 operator new() 的重載 
-			void* operator new(size_t size){
-				cout << "operator new(size_t size), size= " << size << endl;
-				return malloc(size);
-			}
-	
-			//(2) 這個就是標準庫已經提供的 placement new() 的重載 (形式)
-			//    (所以我也模擬 standard placement new 的動作, just return ptr) 
-			void* operator new(size_t size, void* start){
-				cout << "operator new(size_t size, void* start), size= " << size << "  start= " << start << endl;
-				return start;
-			}
-	
-			//(3) 這個才是嶄新的 placement new 
-			void* operator new(size_t size, long extra){
-				cout << "operator new(size_t size, long extra)  " << size << ' ' << extra << endl;
-				return malloc(size + extra);
-			}
-	
-			//(4) 這又是一個 placement new 
-			void* operator new(size_t size, long extra, char init){
-				cout << "operator new(size_t size, long extra, char init)  " << size << ' ' << extra << ' ' << init << endl;
-				return malloc(size + extra);
-			}
-	
-			//(5) 這又是一個 placement new, 但故意寫錯第一參數的 type (它必須是 size_t 以滿足正常的 operator new) 
-			//!  	void* operator new(long extra, char init) { //[Error] 'operator new' takes type 'size_t' ('unsigned int') as first parameter [-fpermissive]
-			//!	  	cout << "op-new(long,char)" << endl;
-			//!    	return malloc(extra);
-			//!  	} 	
-	
-			//以下是搭配上述 placement new 的各個 called placement delete. 
-			//當 ctor 發出異常，這兒對應的 operator (placement) delete 就會被喚起. 
-			//應該是要負責釋放其搭檔兄弟 (placement new) 分配所得的 memory.  
-			//(1) 這個就是一般的 operator delete() 的重載 
-			void operator delete(void*, size_t)
-			{
-				cout << "operator delete(void*,size_t)  " << endl;
-			}
-	
-			//(2) 這是對應上述的 (2)  
-			void operator delete(void*, void*)
-			{
-				cout << "operator delete(void*,void*)  " << endl;
-			}
-	
-			//(3) 這是對應上述的 (3)  
-			void operator delete(void*, long)
-			{
-				cout << "operator delete(void*,long)  " << endl;
-			}
-	
-			//(4) 這是對應上述的 (4)  
-			//如果沒有一一對應, 也不會有任何編譯報錯 
-			void operator delete(void*, long, char)
-			{
-				cout << "operator delete(void*,long,char)  " << endl;
-			}
-	
-		private:
-			int m_i;
-		};
-
-
-​	
-​		//-------------	
-​		void test_overload_placement_new()
-​		{
-​			cout << "\n\n\ntest_overload_placement_new().......... \n";
-​	
-			Foo start;  //Foo::Foo
-	
-			Foo* p1 = new Foo;           //op-new(size_t)
-			Foo* p2 = new (&start) Foo;  //op-new(size_t,void*)
-			Foo* p3 = new (100) Foo;     //op-new(size_t,long)
-			Foo* p4 = new (100, 'a') Foo; //op-new(size_t,long,char)
-	
-			Foo* p5 = new (100) Foo(1);     //op-new(size_t,long)  op-del(void*,long)
-			Foo* p6 = new (100, 'a') Foo(1); //
-			Foo* p7 = new (&start) Foo(1);  //
-			Foo* p8 = new Foo(1);           //
-			//VC6 warning C4291: 'void *__cdecl Foo::operator new(unsigned int)'
-			//no matching operator delete found; memory will not be freed if
-			//initialization throws an exception
+	public:
+		Foo() { cout << "Foo::Foo()" << endl; }
+		Foo(int) {
+			cout << "Foo::Foo(int)" << endl;
+			// throw Bad();  
 		}
-	} //namespace	
-	
-	int main(void)
-	{
-		jj07::test_overload_placement_new();
-		return 0;
-	}
 
+		//(1) 這個就是一般的 operator new() 的重載 
+		void* operator new(size_t size){
+			cout << "operator new(size_t size), size= " << size << endl;
+			return malloc(size);
+		}
+
+		//(2) 這個就是標準庫已經提供的 placement new() 的重載 (形式)
+		//    (所以我也模擬 standard placement new 的動作, just return ptr) 
+		void* operator new(size_t size, void* start){
+			cout << "operator new(size_t size, void* start), size= " << size << "  start= " << start << endl;
+			return start;
+		}
+
+		//(3) 這個才是嶄新的 placement new 
+		void* operator new(size_t size, long extra){
+			cout << "operator new(size_t size, long extra)  " << size << ' ' << extra << endl;
+			return malloc(size + extra);
+		}
+
+		//(4) 這又是一個 placement new 
+		void* operator new(size_t size, long extra, char init){
+			cout << "operator new(size_t size, long extra, char init)  " << size << ' ' << extra << ' ' << init << endl;
+			return malloc(size + extra);
+		}
+
+		//(5) 這又是一個 placement new, 但故意寫錯第一參數的 type (它必須是 size_t 以滿足正常的 operator new) 
+		//!  	void* operator new(long extra, char init) { //[Error] 'operator new' takes type 'size_t' ('unsigned int') as first parameter [-fpermissive]
+		//!	  	cout << "op-new(long,char)" << endl;
+		//!    	return malloc(extra);
+		//!  	} 	
+
+		//以下是搭配上述 placement new 的各個 called placement delete. 
+		//當 ctor 發出異常，這兒對應的 operator (placement) delete 就會被喚起. 
+		//應該是要負責釋放其搭檔兄弟 (placement new) 分配所得的 memory.  
+		//(1) 這個就是一般的 operator delete() 的重載 
+		void operator delete(void*, size_t)
+		{
+			cout << "operator delete(void*,size_t)  " << endl;
+		}
+
+		//(2) 這是對應上述的 (2)  
+		void operator delete(void*, void*)
+		{
+			cout << "operator delete(void*,void*)  " << endl;
+		}
+
+		//(3) 這是對應上述的 (3)  
+		void operator delete(void*, long)
+		{
+			cout << "operator delete(void*,long)  " << endl;
+		}
+
+		//(4) 這是對應上述的 (4)  
+		//如果沒有一一對應, 也不會有任何編譯報錯 
+		void operator delete(void*, long, char)
+		{
+			cout << "operator delete(void*,long,char)  " << endl;
+		}
+
+	private:
+		int m_i;
+	};
+
+
+
+	//-------------	
+	void test_overload_placement_new()
+	{
+		cout << "\n\n\ntest_overload_placement_new().......... \n";
+
+		Foo start;  //Foo::Foo
+
+		Foo* p1 = new Foo;           //op-new(size_t)
+		Foo* p2 = new (&start) Foo;  //op-new(size_t,void*)
+		Foo* p3 = new (100) Foo;     //op-new(size_t,long)
+		Foo* p4 = new (100, 'a') Foo; //op-new(size_t,long,char)
+
+		Foo* p5 = new (100) Foo(1);     //op-new(size_t,long)  op-del(void*,long)
+		Foo* p6 = new (100, 'a') Foo(1); //
+		Foo* p7 = new (&start) Foo(1);  //
+		Foo* p8 = new Foo(1);           //
+		//VC6 warning C4291: 'void *__cdecl Foo::operator new(unsigned int)'
+		//no matching operator delete found; memory will not be freed if
+		//initialization throws an exception
+	}
+} //namespace	
+
+int main(void)
+{
+	jj07::test_overload_placement_new();
+	return 0;
+}
+```
 编译运行结果如下：
 
 ![](https://i.imgur.com/J7nEVmm.png)

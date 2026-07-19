@@ -114,13 +114,13 @@ chunks_
 >
 > `D` 是最后一个 Chunk，因此代码进入：
 >
-> ```
+> ```cpp
 > if (&lastChunk == deallocChunk_)
 > ```
 >
 > 然后它只检查前一个 Chunk：
 >
-> ```
+> ```cpp
 > deallocChunk_[-1]  // 即 C
 > ```
 >
