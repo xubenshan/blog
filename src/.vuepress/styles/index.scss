@@ -72,6 +72,12 @@ div[class*="language-"][data-ext]:not([data-ext=""]):not([data-ext="text"]):not(
 
 @media (min-width: 1440px) {
   .vp-sidebar {
-    padding-inline-start: 5.25rem;
+    // Keep the sidebar inside the space reserved by Theme Hope. A fixed
+    // padding makes the sidebar wider than `--sidebar-space` on scaled 2.5K
+    // displays and causes it to cover the first characters of article text.
+    padding-inline-start: min(
+      5.25rem,
+      max(0px, calc(var(--sidebar-space) - var(--sidebar-width)))
+    );
   }
 }
